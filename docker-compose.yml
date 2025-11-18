@@ -1,0 +1,63 @@
+version: '3.8'
+
+services:
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2019-latest
+    container_name: tirconnector-sqlserver
+    ports:
+      - "1433:1433"
+    environment:
+      - ACCEPT_EULA=Y
+      - SA_PASSWORD=TIR_SQL_Test123!
+      - MSSQL_PID=Express
+    #volumes:
+    #  - sqlserver-data:/var/opt/mssql
+    restart: unless-stopped
+    networks:
+      - tirconnector-network
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P TIR_SQL_Test123! -C -Q 'SELECT 1' || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 30s
+
+  tirconnector:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: tirconnector-api
+    ports:
+      - "8080:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ConnectionStrings__DefaultConnection=Server=sqlserver,1433;Database=TirSQL;User Id=sa;Password=TIR_SQL_Test123!;TrustServerCertificate=True;Encrypt=False;MultipleActiveResultSets=true
+      - DB_HOST=sqlserver
+      - DB_PORT=1433
+      - DB_NAME=TirSQL
+      - DB_USER=sa
+      - DB_PASSWORD=TIR_SQL_Test123!
+      - API_KEYS=default-key-change-me,another-key
+      - CORS_ORIGINS=http://localhost:3000,http://localhost:9090
+    volumes:
+      - ./logs:/app/logs
+    restart: unless-stopped
+    networks:
+      - tirconnector-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/api/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+
+networks:
+  tirconnector-network:
+    driver: bridge
+
+volumes:
+  logs:
+  sqlserver-data:

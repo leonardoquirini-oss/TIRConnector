@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(tree:*)",
+      "Bash(docker-compose pull:*)",
+      "Bash(docker-compose up:*)",
+      "Bash(docker ps:*)",
+      "Bash(docker logs:*)",
+      "Bash(docker exec:*)",
+      "Bash(docker restart:*)",
+      "Bash(docker-compose down:*)",
+      "Bash(curl:*)",
+      "Bash(docker volume:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

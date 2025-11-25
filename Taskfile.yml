@@ -24,3 +24,7 @@ tasks:
     cmds:
       - docker-compose -f docker-compose_sql.yml down && docker-compose -f docker-compose_sql.yml up -d
     silent: true    
+
+  logs-tir:
+    cmds:
+      - docker-compose logs -f tirconnector

@@ -1,0 +1,33 @@
+version: '3.8'
+
+services:
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2019-latest
+    container_name: sqlserver
+    ports:
+      - "1433:1433"
+    environment:
+      - ACCEPT_EULA=Y
+      - SA_PASSWORD=saSA2025@@
+      - MSSQL_PID=Developer
+    volumes:
+      - /opt/berlink/sqlserver/data:/var/opt/mssql
+      - /mnt/c/Users/leonardo.quirini/Desktop/BACKUP_FILES:/tmp/data/sql
+    restart: unless-stopped
+    networks:
+      - tirconnector-network
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P saSA2025@@ -C -Q 'SELECT 1' || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 30s
+
+
+networks:
+  tirconnector-network:
+    driver: bridge
+
+volumes:
+  logs:
+

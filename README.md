@@ -89,7 +89,7 @@ docker-compose logs -f tirconnector
 ```
 
 4. **Access the API**:
-- Swagger UI: http://localhost:8080/swagger
+- Swagger UI:   
 - Health Check: http://localhost:8080/api/health
 
 ### Stop the Application

@@ -1,0 +1,26 @@
+version: '3'
+
+vars:
+  
+
+tasks:
+  
+  tir:
+    cmds:
+      - docker-compose up -d
+    silent: true  
+
+  sql:
+    cmds:
+      - docker-compose -f docker-compose_sql.yml up -d
+    silent: true  
+
+  restart:
+    cmds:
+      - docker-compose down && docker-compose up -d
+    silent: true    
+
+  restart-sql:
+    cmds:
+      - docker-compose -f docker-compose_sql.yml down && docker-compose -f docker-compose_sql.yml up -d
+    silent: true    

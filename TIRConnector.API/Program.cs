@@ -123,6 +123,10 @@ else
 
 app.UseCors();
 
+// Serve static files from wwwroot (admin UI)
+app.UseDefaultFiles();
+app.UseStaticFiles();
+
 // Custom middleware for API Key authentication
 app.UseMiddleware<ApiKeyAuthenticationMiddleware>();
 

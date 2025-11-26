@@ -22,10 +22,11 @@ public class ApiKeyAuthenticationMiddleware
 
     public async Task InvokeAsync(HttpContext context)
     {
-        // Skip authentication for health check and Swagger endpoints
+        // Skip authentication for health check, Swagger, and admin static files
         if (context.Request.Path.StartsWithSegments("/api/health") ||
             context.Request.Path.StartsWithSegments("/swagger") ||
-            context.Request.Path.StartsWithSegments("/health"))
+            context.Request.Path.StartsWithSegments("/health") ||
+            context.Request.Path.StartsWithSegments("/admin"))
         {
             await _next(context);
             return;

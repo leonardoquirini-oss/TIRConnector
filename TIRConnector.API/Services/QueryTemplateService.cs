@@ -39,6 +39,14 @@ public class QueryTemplateService : IQueryTemplateService
             .FirstOrDefaultAsync(t => t.Name == name && t.Active && !t.Deprecated, cancellationToken);
     }
 
+    public async Task<IEnumerable<QueryTemplate>> GetAllTemplatesAsync(CancellationToken cancellationToken = default)
+    {
+        return await _postgresContext.QueryTemplates
+            .OrderBy(t => t.Category)
+            .ThenBy(t => t.Name)
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task<IEnumerable<QueryTemplate>> GetActiveTemplatesAsync(CancellationToken cancellationToken = default)
     {
         return await _postgresContext.QueryTemplates
@@ -46,6 +54,87 @@ public class QueryTemplateService : IQueryTemplateService
             .OrderBy(t => t.Category)
             .ThenBy(t => t.Name)
             .ToListAsync(cancellationToken);
+    }
+
+    public async Task<QueryTemplate?> GetTemplateByIdAsync(int id, CancellationToken cancellationToken = default)
+    {
+        return await _postgresContext.QueryTemplates
+            .FirstOrDefaultAsync(t => t.IdQueryTemplate == id, cancellationToken);
+    }
+
+    public async Task<QueryTemplate> CreateTemplateAsync(QueryTemplateDto dto, CancellationToken cancellationToken = default)
+    {
+        // Genera nuovo ID dalla sequenza
+        var nextId = await _postgresContext.Database
+            .SqlQuery<int>($"SELECT nextval('s_query_templates')::int")
+            .FirstOrDefaultAsync(cancellationToken);
+
+        var template = new QueryTemplate
+        {
+            IdQueryTemplate = nextId,
+            Name = dto.Name,
+            Description = dto.Description,
+            Category = dto.Category,
+            QuerySql = dto.QuerySql,
+            OutputFormat = dto.OutputFormat,
+            MaxResults = dto.MaxResults,
+            TimeoutSeconds = dto.TimeoutSeconds,
+            Active = dto.Active,
+            Version = 1,
+            CreationDate = DateTime.UtcNow
+        };
+
+        _postgresContext.QueryTemplates.Add(template);
+        await _postgresContext.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation("Created template: {TemplateName} (ID: {TemplateId})", template.Name, template.IdQueryTemplate);
+
+        return template;
+    }
+
+    public async Task<QueryTemplate> UpdateTemplateAsync(int id, QueryTemplateDto dto, CancellationToken cancellationToken = default)
+    {
+        var template = await _postgresContext.QueryTemplates
+            .FirstOrDefaultAsync(t => t.IdQueryTemplate == id, cancellationToken);
+
+        if (template == null)
+        {
+            throw new KeyNotFoundException($"Template con ID {id} non trovato");
+        }
+
+        template.Name = dto.Name;
+        template.Description = dto.Description;
+        template.Category = dto.Category;
+        template.QuerySql = dto.QuerySql;
+        template.OutputFormat = dto.OutputFormat;
+        template.MaxResults = dto.MaxResults;
+        template.TimeoutSeconds = dto.TimeoutSeconds;
+        template.Active = dto.Active;
+        template.UpdateDate = DateTime.UtcNow;
+        template.Version++;
+
+        await _postgresContext.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation("Updated template: {TemplateName} (ID: {TemplateId}, Version: {Version})",
+            template.Name, template.IdQueryTemplate, template.Version);
+
+        return template;
+    }
+
+    public async Task DeleteTemplateAsync(int id, CancellationToken cancellationToken = default)
+    {
+        var template = await _postgresContext.QueryTemplates
+            .FirstOrDefaultAsync(t => t.IdQueryTemplate == id, cancellationToken);
+
+        if (template == null)
+        {
+            throw new KeyNotFoundException($"Template con ID {id} non trovato");
+        }
+
+        _postgresContext.QueryTemplates.Remove(template);
+        await _postgresContext.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation("Deleted template: {TemplateName} (ID: {TemplateId})", template.Name, id);
     }
 
     public async Task<QueryResponse> ExecuteTemplateAsync(TemplateExecuteRequest request, CancellationToken cancellationToken = default)

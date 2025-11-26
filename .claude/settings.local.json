@@ -10,7 +10,8 @@
       "Bash(docker restart:*)",
       "Bash(docker-compose down:*)",
       "Bash(curl:*)",
-      "Bash(docker volume:*)"
+      "Bash(docker volume:*)",
+      "Bash(docker compose build:*)"
     ],
     "deny": [],
     "ask": []

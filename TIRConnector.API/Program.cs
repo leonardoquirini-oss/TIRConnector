@@ -140,6 +140,19 @@ app.MapHealthChecks("/health");
 try
 {
     Log.Information("Starting TIRConnector API");
+
+    // Log delle API Key configurate
+    var apiKeySettings = builder.Configuration.GetSection("ApiKeySettings").Get<ApiKeySettings>();
+    if (apiKeySettings != null)
+    {
+        var keys = apiKeySettings.GetKeys().ToList();
+        Log.Information("Configured API Keys ({Count}): {Keys}", keys.Count, string.Join(", ", keys));
+    }
+    else
+    {
+        Log.Warning("No API Keys configured!");
+    }
+
     app.Run();
 }
 catch (Exception ex)

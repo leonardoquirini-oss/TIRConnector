@@ -64,9 +64,9 @@ public class QueryTemplateService : IQueryTemplateService
 
     public async Task<QueryTemplate> CreateTemplateAsync(QueryTemplateDto dto, CancellationToken cancellationToken = default)
     {
-        // Genera nuovo ID dalla sequenza
+        // Genera nuovo ID dalla sequenza (EF Core richiede alias "Value" per tipi primitivi)
         var nextId = await _postgresContext.Database
-            .SqlQuery<int>($"SELECT nextval('s_query_templates')::int")
+            .SqlQuery<int>($"SELECT nextval('s_query_templates')::int AS \"Value\"")
             .FirstOrDefaultAsync(cancellationToken);
 
         var template = new QueryTemplate
@@ -172,7 +172,7 @@ public class QueryTemplateService : IQueryTemplateService
                 {
                     var parameter = command.CreateParameter();
                     parameter.ParameterName = $"@{param.Key}";
-                    parameter.Value = param.Value ?? DBNull.Value;
+                    parameter.Value = ConvertParameterValue(param.Value);
                     command.Parameters.Add(parameter);
                 }
             }
@@ -246,5 +246,31 @@ public class QueryTemplateService : IQueryTemplateService
             });
         }
         return columns;
+    }
+
+    /// <summary>
+    /// Converte i valori dei parametri da JsonElement a tipi nativi per SQL Server
+    /// </summary>
+    private object ConvertParameterValue(object? value)
+    {
+        if (value == null)
+            return DBNull.Value;
+
+        if (value is System.Text.Json.JsonElement jsonElement)
+        {
+            return jsonElement.ValueKind switch
+            {
+                System.Text.Json.JsonValueKind.String => (object?)jsonElement.GetString() ?? DBNull.Value,
+                System.Text.Json.JsonValueKind.Number => jsonElement.TryGetInt64(out var longVal)
+                    ? longVal
+                    : jsonElement.GetDouble(),
+                System.Text.Json.JsonValueKind.True => true,
+                System.Text.Json.JsonValueKind.False => false,
+                System.Text.Json.JsonValueKind.Null => DBNull.Value,
+                _ => jsonElement.ToString()
+            };
+        }
+
+        return value;
     }
 }

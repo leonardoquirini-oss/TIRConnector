@@ -5,7 +5,23 @@ vars:
 
 tasks:
   
+  stop-tir:
+    cmds:
+      - docker-compose stop tirconnector
+    silent: true  
+  
+  build-tir:
+    cmds:
+      - docker-compose build tirconnector
+    silent: true  
+
   tir:
+    cmds:
+      - task stop-tir
+      - task build-tir
+    silent: true  
+
+  up:
     cmds:
       - docker-compose up -d
     silent: true  

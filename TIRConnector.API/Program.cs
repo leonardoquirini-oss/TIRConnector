@@ -28,14 +28,19 @@ builder.Services.AddControllers(options =>
 builder.Services.Configure<ApiKeySettings>(builder.Configuration.GetSection("ApiKeySettings"));
 builder.Services.Configure<QuerySettings>(builder.Configuration.GetSection("QuerySettings"));
 
-// Add DbContext
+// Add DbContext for SQL Server (TIR database)
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+// Add DbContext for PostgreSQL (Query Templates)
+builder.Services.AddDbContext<PostgresDbContext>(options =>
+    options.UseNpgsql(builder.Configuration.GetConnectionString("PostgresConnection")));
 
 // Add services
 builder.Services.AddScoped<IQueryService, QueryService>();
 builder.Services.AddScoped<ITableService, TableService>();
 builder.Services.AddScoped<IMetadataService, MetadataService>();
+builder.Services.AddScoped<IQueryTemplateService, QueryTemplateService>();
 
 // Add Health Checks
 builder.Services.AddHealthChecks()

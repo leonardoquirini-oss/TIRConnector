@@ -32,8 +32,11 @@ services:
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
 
-      # DB Locale
+      # DB Locale (SQL Server - TIR)
       - ConnectionStrings__DefaultConnection=Server=sqlserver,1433;Database=TirSQL;User Id=sa;Password=saSA2025@@;TrustServerCertificate=True;Encrypt=False;MultipleActiveResultSets=true
+
+      # PostgreSQL (Query Templates - TIRConnector DB)
+      - ConnectionStrings__PostgresConnection=Host=172.28.234.122;Port=5432;Database=tirconnectordb;Username=tirconnector;Password=tirconnector
       
       # DB Reale - UtenteSolaLettura
       #- ConnectionStrings__DefaultConnection=Data Source=192.168.0.10\TIR;Initial Catalog=TirSQL;Persist Security Info=True;User ID=UtenteSolaLettura;Password=test;Pooling=False;MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=True;Command Timeout=0

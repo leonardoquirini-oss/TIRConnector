@@ -1,5 +1,13 @@
+declare global {
+  interface Window {
+    APP_CONFIG?: {
+      apiKey?: string;
+    };
+  }
+}
+
 const API_BASE = '/api/query';
-const API_KEY = 'default-key-change-me';
+const API_KEY = window.APP_CONFIG?.apiKey || 'default-key-change-me';
 
 export interface Template {
   idQueryTemplate: number;

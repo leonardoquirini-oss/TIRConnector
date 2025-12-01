@@ -38,6 +38,10 @@ COPY --from=publish /app/publish .
 # Copy Svelte build output to wwwroot/admin
 COPY --from=svelte-build /app/dist ./wwwroot/admin
 
+# Copy entrypoint script and fix line endings (Windows -> Unix)
+COPY entrypoint.sh /app/entrypoint.sh
+RUN sed -i 's/\r$//' /app/entrypoint.sh && chmod +x /app/entrypoint.sh
+
 # Set environment variables for ASP.NET Core
 ENV ASPNETCORE_URLS=http://+:8080
 ENV ASPNETCORE_ENVIRONMENT=Production
@@ -49,4 +53,4 @@ EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
   CMD curl -f http://localhost:8080/api/health || exit 1
 
-ENTRYPOINT ["dotnet", "TIRConnector.API.dll"]
+ENTRYPOINT ["/app/entrypoint.sh"]

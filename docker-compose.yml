@@ -37,10 +37,10 @@ services:
       - ConnectionStrings__PostgresConnection=Host=172.28.234.122;Port=5432;Database=tirconnectordb;Username=tirconnector;Password=tirconnector
       
       # DB Reale - UtenteSolaLettura
-      #- ConnectionStrings__DefaultConnection=Data Source=192.168.0.10\TIR;Initial Catalog=TirSQL;Persist Security Info=True;User ID=UtenteSolaLettura;Password=test;Pooling=False;MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=True;Command Timeout=0
+      - ConnectionStrings__DefaultConnection=Data Source=192.168.0.10\TIR;Initial Catalog=TirSQL;Persist Security Info=True;User ID=UtenteSolaLettura;Password=test;Pooling=False;MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=True;Command Timeout=0
 
-      # DB di test - copia del db di TIR
-      - ConnectionStrings__DefaultConnection=Data Source=192.168.0.14;Initial Catalog=TirSQL;Persist Security Info=True;User ID=sa;Password=GgGiobbe123!;Pooling=False;MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=True;Application Name="SQL Server Management Studio";Command Timeout=0
+      # DB di test 192.168.0.14 - copia del db di TIR del 21/11/2025
+      #- ConnectionStrings__DefaultConnection=Data Source=192.168.0.14;Initial Catalog=TirSQL;Persist Security Info=True;User ID=sa;Password=GgGiobbe123!;Pooling=False;MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=True;Application Name="SQL Server Management Studio";Command Timeout=0
 
       #Data Source=192.168.0.10\TIR;Initial Catalog=TirSQL;Persist Security Info=True;User ID=UtenteSolaLettura;Password=test;Pooling=False;MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=True;Application Name="SQL Server Management Studio";Command Timeout=0
       #- DB_HOST=192.168.0.14
@@ -49,8 +49,8 @@ services:
       #- DB_USER=sa
       #- DB_PASSWORD=GgGiobbe123!
       - ApiKeySettings__Keys=default-key-change-me,another-key
-      - Cors__AllowedOrigins__0=http://localhost:3000
-      - Cors__AllowedOrigins__1=http://localhost:9090
+      #- Cors__AllowedOrigins__0=http://localhost:3000
+      #- Cors__AllowedOrigins__1=http://localhost:9090
     volumes:
       - ./logs:/app/logs
     restart: unless-stopped

@@ -173,9 +173,9 @@ $$ LANGUAGE plpgsql;
 -- ============================================================================
 
 -- query_templates
-CREATE INDEX idx_query_templa       es_categoria ON query_templates(categoria);
+CREATE INDEX idx_query_templates_category ON query_templates(category);
 CREATE INDEX idx_query_templates_tags ON query_templates USING GIN(tags);
-CREATE INDEX idx_query_templates_attivo ON query_templates(attivo) WHERE attivo = true;
+CREATE INDEX idx_query_templates_active ON query_templates(active) WHERE active = true;
 
 -- query_versions
 CREATE INDEX idx_query_versions_query_id ON query_versions(query_id);

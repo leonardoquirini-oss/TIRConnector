@@ -1,70 +1,39 @@
 services:
-  #sqlserver:
-  #  image: mcr.microsoft.com/mssql/server:2019-latest
-  #  container_name: tirconnector-sqlserver
-  #  ports:
-  #    - "1433:1433"
-  #  environment:
-  #    - ACCEPT_EULA=Y
-  #    - SA_PASSWORD=TIR_SQL_Test123!
-  #    - MSSQL_PID=Express
-  #  #volumes:
-  #  #  - sqlserver-data:/var/opt/mssql
-  #  restart: unless-stopped
-  #  networks:
-  #    - tirconnector-network
-  #  healthcheck:
-  #    test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P TIR_SQL_Test123! -C -Q 'SELECT 1' || exit 1"]
-  #    interval: 10s
-  #    timeout: 3s
-  #    retries: 10
-  #    start_period: 30s
+      tirconnector:
+        build:
+          context: .
+          dockerfile: Dockerfile
+        container_name: tirconnector-api
+        ports:
+          - "9090:8080"
+        environment:
+          - ASPNETCORE_ENVIRONMENT=Production
 
-  tirconnector:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: tirconnector-api
-    ports:
-      - "9090:8080"
-    environment:
-      - ASPNETCORE_ENVIRONMENT=Production
+          # DB Locale (SQL Server - TIR)
+          #- ConnectionStrings__DefaultConnection=Server=sqlserver,1433;Database=TirSQL;User Id=sa;Password=saSA2025@@;TrustServerCertificate=True;Encrypt=False;MultipleActiveResultSets=true
 
-      # DB Locale (SQL Server - TIR)
-      #- ConnectionStrings__DefaultConnection=Server=sqlserver,1433;Database=TirSQL;User Id=sa;Password=saSA2025@@;TrustServerCertificate=True;Encrypt=False;MultipleActiveResultSets=true
+          # PostgreSQL (Query Templates - TIRConnector DB)
+          - ConnectionStrings__PostgresConnection=Host=172.28.234.122;Port=5432;Database=tirconnectordb;Username=tirconnector;Password=tirconnector
+          
+          # DB Reale - UtenteSolaLettura
+          #- ConnectionStrings__DefaultConnection=Data Source=192.168.0.10\TIR;Initial Catalog=TirSQL;Persist Security Info=True;User ID=UtenteSolaLettura;Password=test;Pooling=False;MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=True;Command Timeout=0
 
-      # PostgreSQL (Query Templates - TIRConnector DB)
-      - ConnectionStrings__PostgresConnection=Host=172.28.234.122;Port=5432;Database=tirconnectordb;Username=tirconnector;Password=tirconnector
-      
-      # DB Reale - UtenteSolaLettura
-      - ConnectionStrings__DefaultConnection=Data Source=192.168.0.10\TIR;Initial Catalog=TirSQL;Persist Security Info=True;User ID=UtenteSolaLettura;Password=test;Pooling=False;MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=True;Command Timeout=0
+          # DB di test 192.168.0.14 - copia del db di TIR del 21/11/2025
+          - ConnectionStrings__DefaultConnection=Data Source=192.168.0.14;Initial Catalog=TirSQL;Persist Security Info=True;User ID=sa;Password=GgGiobbe123!;Pooling=False;MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=True;Application Name="SQL Server Management Studio";Command Timeout=0
 
-      # DB di test 192.168.0.14 - copia del db di TIR del 21/11/2025
-      #- ConnectionStrings__DefaultConnection=Data Source=192.168.0.14;Initial Catalog=TirSQL;Persist Security Info=True;User ID=sa;Password=GgGiobbe123!;Pooling=False;MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=True;Application Name="SQL Server Management Studio";Command Timeout=0
-
-      #Data Source=192.168.0.10\TIR;Initial Catalog=TirSQL;Persist Security Info=True;User ID=UtenteSolaLettura;Password=test;Pooling=False;MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=True;Application Name="SQL Server Management Studio";Command Timeout=0
-      #- DB_HOST=192.168.0.14
-      #- DB_PORT=1433
-      #- DB_NAME=TirSQL
-      #- DB_USER=sa
-      #- DB_PASSWORD=GgGiobbe123!
-      - ApiKeySettings__Keys=default-key-change-me,another-key
-      #- Cors__AllowedOrigins__0=http://localhost:3000
-      #- Cors__AllowedOrigins__1=http://localhost:9090
-    volumes:
-      - ./logs:/app/logs
-    restart: unless-stopped
-    networks:
-      - tirconnector-network
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/api/health"]
-      interval: 30s
-      timeout: 3s
-      retries: 3
-      start_period: 10s
-    #depends_on:
-    #  sqlserver:
-    #    condition: service_healthy
+          - ApiKeySettings__Keys=default-key-change-me,another-key
+          - Cors__AllowedOrigins__0=*          
+        volumes:
+          - ./logs:/app/logs
+        restart: unless-stopped
+        networks:
+          - tirconnector-network
+        healthcheck:
+          test: ["CMD", "curl", "-f", "http://localhost:8080/api/health"]
+          interval: 30s
+          timeout: 3s
+          retries: 3
+          start_period: 10s
 
 networks:
   tirconnector-network:
@@ -72,4 +41,3 @@ networks:
 
 volumes:
   logs:
-  sqlserver-data:

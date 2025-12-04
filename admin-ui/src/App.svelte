@@ -53,7 +53,7 @@
 </script>
 
 <header>
-  <h1>Query Templates Admin</h1>
+  <h1>TIR Query Templates Admin</h1>
   <button class="primary" on:click={handleNewTemplate}>
     + Nuovo Template
   </button>

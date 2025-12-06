@@ -177,6 +177,13 @@ public class QueryTemplateService : IQueryTemplateService
                 }
             }
 
+            // Log della query finale
+            _logger.LogInformation("Executing SQL: {Query}", query);
+            _logger.LogInformation("Parameters: {Parameters}",
+                request.Parameters != null
+                    ? string.Join(", ", request.Parameters.Select(p => $"{p.Key}={p.Value}"))
+                    : "none");
+
             using var reader = await command.ExecuteReaderAsync(cancellationToken);
             var result = new QueryResponse
             {

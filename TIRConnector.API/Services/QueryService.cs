@@ -51,6 +51,13 @@ public class QueryService : IQueryService
                 }
             }
 
+            // Log della query finale
+            _logger.LogInformation("Executing SQL: {Query}", request.Query);
+            _logger.LogInformation("Parameters: {Parameters}",
+                request.Parameters != null
+                    ? string.Join(", ", request.Parameters.Select(p => $"{p.Key}={p.Value}"))
+                    : "none");
+
             using var reader = await command.ExecuteReaderAsync(cancellationToken);
             var result = new QueryResponse
             {
@@ -117,6 +124,9 @@ public class QueryService : IQueryService
                 countCommand.Parameters.Add(parameter);
             }
         }
+
+        // Log della count query
+        _logger.LogInformation("Executing count SQL: {Query}", countQuery);
 
         var totalCount = Convert.ToInt32(await countCommand.ExecuteScalarAsync(cancellationToken));
 

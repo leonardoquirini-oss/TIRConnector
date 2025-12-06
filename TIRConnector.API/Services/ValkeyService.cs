@@ -119,6 +119,16 @@ public class ValkeyService : IValkeyService, IDisposable
         return await _database.KeyExistsAsync(key);
     }
 
+    public async Task HashSetAsync(string key, HashEntry[] entries, CancellationToken cancellationToken = default)
+    {
+        await _database.HashSetAsync(key, entries);
+    }
+
+    public async Task<HashEntry[]> HashGetAllAsync(string key, CancellationToken cancellationToken = default)
+    {
+        return await _database.HashGetAllAsync(key);
+    }
+
     public void Dispose()
     {
         _connection?.Dispose();

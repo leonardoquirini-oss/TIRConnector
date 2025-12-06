@@ -14,5 +14,7 @@ public interface IValkeyService
     IAsyncEnumerable<string> SortedSetScanAsync(string key, string pattern = "*", int pageSize = 250, CancellationToken cancellationToken = default);
     Task<long> SortedSetLengthAsync(string key, CancellationToken cancellationToken = default);
     Task<bool> KeyExistsAsync(string key, CancellationToken cancellationToken = default);
+    Task HashSetAsync(string key, HashEntry[] entries, CancellationToken cancellationToken = default);
+    Task<HashEntry[]> HashGetAllAsync(string key, CancellationToken cancellationToken = default);
     IDatabase GetDatabase();
 }

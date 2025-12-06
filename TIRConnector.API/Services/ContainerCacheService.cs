@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using Microsoft.EntityFrameworkCore;
+using StackExchange.Redis;
 using TIRConnector.API.Data;
 using TIRConnector.API.Models.DTOs;
 
@@ -181,13 +182,58 @@ public class ContainerCacheService : IContainerCacheService
 
     private async Task AddContainerToCacheAsync(ContainerDto container, CancellationToken cancellationToken)
     {
-        // Salva i dati del container
+        // Salva i dati del container come Hash
         var dataKey = $"{DataKeyPrefix}{container.Id}";
-        await _valkeyService.SetAsync(dataKey, container, cancellationToken: cancellationToken);
+
+        // Elimina la chiave esistente (potrebbe essere di tipo diverso, es. String)
+        await _valkeyService.DeleteAsync(dataKey, cancellationToken);
+
+        var entries = ContainerToHashEntries(container);
+        await _valkeyService.HashSetAsync(dataKey, entries, cancellationToken);
 
         // Aggiungi all'indice con formato "CASSA:ID"
         var indexMember = $"{container.Cassa?.ToUpperInvariant() ?? ""}:{container.Id}";
         await _valkeyService.SortedSetAddAsync(IndexKey, indexMember, 0, cancellationToken);
+    }
+
+    private static HashEntry[] ContainerToHashEntries(ContainerDto container)
+    {
+        var entries = new List<HashEntry>
+        {
+            new("id", container.Id.ToString()),
+            new("cassa", container.Cassa ?? ""),
+            new("descrizione", container.Descrizione ?? ""),
+            new("piantoni", container.Piantoni?.ToString() ?? ""),
+            new("tipo", container.Tipo ?? ""),
+            new("nota", container.Nota ?? ""),
+            new("container", container.Container?.ToString() ?? ""),
+            new("mobile", container.Mobile?.ToString() ?? ""),
+            new("rottami", container.Rottami?.ToString() ?? ""),
+            new("larghezza", container.Larghezza?.ToString() ?? ""),
+            new("altezza", container.Altezza?.ToString() ?? ""),
+            new("lunghezza", container.Lunghezza?.ToString() ?? ""),
+            new("volume", container.Volume?.ToString() ?? ""),
+            new("manutenzione", container.Manutenzione ?? ""),
+            new("modello", container.Modello ?? ""),
+            new("numserie", container.NumSerie ?? ""),
+            new("controllock", container.ControlLock ?? ""),
+            new("portatakg", container.PortataKg?.ToString() ?? ""),
+            new("sponda", container.Sponda?.ToString() ?? ""),
+            new("gru", container.Gru?.ToString() ?? ""),
+            new("carrelli", container.Carrelli?.ToString() ?? ""),
+            new("transpallet", container.Transpallet?.ToString() ?? ""),
+            new("pesaaponte", container.PesaAPonte?.ToString() ?? ""),
+            new("targa", container.Targa ?? ""),
+            new("assali", container.Assali?.ToString() ?? ""),
+            new("pneumatici", container.Pneumatici?.ToString() ?? ""),
+            new("ck", container.Ck?.ToString() ?? ""),
+            new("ckdata", container.CkData ?? ""),
+            new("giornipre", container.GiorniPre?.ToString() ?? ""),
+            new("tara", container.Tara?.ToString() ?? ""),
+            new("identificativo", container.Identificativo ?? ""),
+            new("foto", container.Foto ?? "")
+        };
+        return entries.ToArray();
     }
 
     private async Task RemoveContainersFromCacheAsync(List<int> ids, CancellationToken cancellationToken)

@@ -37,6 +37,12 @@
     <PackageReference Include="Serilog.AspNetCore" Version="8.0.0" />
     <PackageReference Include="Serilog.Sinks.Console" Version="5.0.0" />
     <PackageReference Include="Serilog.Sinks.File" Version="5.0.0" />
+
+    <!-- Redis/Valkey -->
+    <PackageReference Include="StackExchange.Redis" Version="2.7.33" />
+
+    <!-- Cron expression parsing -->
+    <PackageReference Include="Cronos" Version="0.8.4" />
   </ItemGroup>
 
 </Project>

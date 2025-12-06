@@ -27,6 +27,8 @@ builder.Services.AddControllers(options =>
 // Configure options
 builder.Services.Configure<ApiKeySettings>(builder.Configuration.GetSection("ApiKeySettings"));
 builder.Services.Configure<QuerySettings>(builder.Configuration.GetSection("QuerySettings"));
+builder.Services.Configure<ValkeySettings>(builder.Configuration.GetSection("Valkey"));
+builder.Services.Configure<ContainerCacheSettings>(builder.Configuration.GetSection("ContainerCache"));
 
 // Add DbContext for SQL Server (TIR database)
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
@@ -41,6 +43,13 @@ builder.Services.AddScoped<IQueryService, QueryService>();
 builder.Services.AddScoped<ITableService, TableService>();
 builder.Services.AddScoped<IMetadataService, MetadataService>();
 builder.Services.AddScoped<IQueryTemplateService, QueryTemplateService>();
+
+// Add Valkey services
+builder.Services.AddSingleton<IValkeyService, ValkeyService>();
+builder.Services.AddScoped<IContainerCacheService, ContainerCacheService>();
+
+// Add background job for container cache sync
+builder.Services.AddHostedService<ContainerCacheSyncJob>();
 
 // Add Health Checks
 builder.Services.AddHealthChecks()

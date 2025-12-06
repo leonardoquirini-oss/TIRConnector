@@ -10,16 +10,18 @@ services:
           - ASPNETCORE_ENVIRONMENT=Production
 
           # DB Locale (SQL Server - TIR)
-          #- ConnectionStrings__DefaultConnection=Server=sqlserver,1433;Database=TirSQL;User Id=sa;Password=saSA2025@@;TrustServerCertificate=True;Encrypt=False;MultipleActiveResultSets=true
+          - ConnectionStrings__DefaultConnection=Server=172.28.234.122,1433;Database=TirSQL;User Id=sa;Password=saSA2025@@;TrustServerCertificate=True;Encrypt=False;MultipleActiveResultSets=true
+          - ConnectionStrings__PostgresConnection=Host=172.28.234.122;Port=5432;Database=tirconnectordb;Username=tirconnector;Password=tirconnector
+
 
           # PostgreSQL (Query Templates - TIRConnector DB)
-          - ConnectionStrings__PostgresConnection=Host=172.28.234.122;Port=5432;Database=tirconnectordb;Username=tirconnector;Password=tirconnector
+          #- ConnectionStrings__PostgresConnection=Host=172.28.234.122;Port=5432;Database=tirconnectordb;Username=tirconnector;Password=tirconnector
           
           # DB Reale - UtenteSolaLettura
           #- ConnectionStrings__DefaultConnection=Data Source=192.168.0.10\TIR;Initial Catalog=TirSQL;Persist Security Info=True;User ID=UtenteSolaLettura;Password=test;Pooling=False;MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=True;Command Timeout=0
 
           # DB di test 192.168.0.14 - copia del db di TIR del 21/11/2025
-          - ConnectionStrings__DefaultConnection=Data Source=192.168.0.14;Initial Catalog=TirSQL;Persist Security Info=True;User ID=sa;Password=GgGiobbe123!;Pooling=False;MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=True;Application Name="SQL Server Management Studio";Command Timeout=0
+          #- ConnectionStrings__DefaultConnection=Data Source=192.168.0.14;Initial Catalog=TirSQL;Persist Security Info=True;User ID=sa;Password=GgGiobbe123!;Pooling=False;MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=True;Application Name="SQL Server Management Studio";Command Timeout=0
 
           - ApiKeySettings__Keys=default-key-change-me,another-key
           - Cors__AllowedOrigins__0=*          

@@ -24,6 +24,17 @@ services:
           #- ConnectionStrings__DefaultConnection=Data Source=192.168.0.14;Initial Catalog=TirSQL;Persist Security Info=True;User ID=sa;Password=GgGiobbe123!;Pooling=False;MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=True;Application Name="SQL Server Management Studio";Command Timeout=0
 
           - ApiKeySettings__Keys=default-key-change-me,another-key
+
+
+          - Valkey__ConnectionString=172.28.234.122:6379
+          - Valkey__Password=
+          - Valkey__Database=0
+
+          - ContainerCache__EnableScheduler=true
+          
+          # A mezzanotte
+          - ContainerCache__CronExpression=0 0 * * * *
+
           - Cors__AllowedOrigins__0=*          
         volumes:
           - ./logs:/app/logs

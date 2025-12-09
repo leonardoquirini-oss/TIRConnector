@@ -99,4 +99,7 @@ public class ContainerDto
 
     [JsonPropertyName("foto")]
     public string? Foto { get; set; }
+
+    [JsonPropertyName("id_tfp")]
+    public string? IdTfp { get; set; }
 }

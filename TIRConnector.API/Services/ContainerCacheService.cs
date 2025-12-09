@@ -146,7 +146,8 @@ public class ContainerCacheService : IContainerCacheService
             GiorniPre = GetNullableValue<int>(reader, "GiorniPre"),
             Tara = GetNullableValue<int>(reader, "Tara"),
             Identificativo = GetValue<string>(reader, "Identificativo"),
-            Foto = GetValue<string>(reader, "Foto")
+            Foto = GetValue<string>(reader, "Foto"),
+            IdTfp = GetValue<string>(reader, "Id_Tfp")
         };
     }
 
@@ -231,7 +232,8 @@ public class ContainerCacheService : IContainerCacheService
             new("giornipre", container.GiorniPre?.ToString() ?? ""),
             new("tara", container.Tara?.ToString() ?? ""),
             new("identificativo", container.Identificativo ?? ""),
-            new("foto", container.Foto ?? "")
+            new("foto", container.Foto ?? ""),
+            new("id_tfp", container.IdTfp ?? "")
         };
         return entries.ToArray();
     }

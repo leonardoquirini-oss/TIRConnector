@@ -4,6 +4,7 @@
 
   export let templates: Template[] = [];
   export let loading = false;
+  export let selectedId: number | null = null;
 
   const dispatch = createEventDispatcher<{
     select: Template;
@@ -38,7 +39,10 @@
     </thead>
     <tbody>
       {#each templates as template (template.idQueryTemplate)}
-        <tr on:click={() => handleRowClick(template)}>
+        <tr
+          class:selected={template.idQueryTemplate === selectedId}
+          on:click={() => handleRowClick(template)}
+        >
           <td><strong>{template.name}</strong></td>
           <td>{truncate(template.description, 50)}</td>
           <td>{template.category || '-'}</td>

@@ -1,14 +1,13 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import TemplateTable from './lib/TemplateTable.svelte';
-  import TemplateModal from './lib/TemplateModal.svelte';
+  import TemplateDetails from './lib/TemplateDetails.svelte';
   import { getTemplates, type Template } from './lib/api';
 
   let templates: Template[] = [];
   let loading = true;
   let error = '';
 
-  let showModal = false;
   let selectedTemplate: Template | null = null;
   let isNewTemplate = false;
 
@@ -31,25 +30,24 @@
   function handleNewTemplate() {
     selectedTemplate = null;
     isNewTemplate = true;
-    showModal = true;
   }
 
   function handleSelectTemplate(event: CustomEvent<Template>) {
     selectedTemplate = event.detail;
     isNewTemplate = false;
-    showModal = true;
   }
 
-  function handleModalClose() {
-    showModal = false;
+  function handleClose() {
     selectedTemplate = null;
+    isNewTemplate = false;
   }
 
-  function handleModalSaved() {
-    showModal = false;
-    selectedTemplate = null;
+  function handleSaved() {
     loadTemplates();
   }
+
+  $: selectedId = selectedTemplate?.idQueryTemplate ?? null;
+  $: showDetails = selectedTemplate !== null || isNewTemplate;
 </script>
 
 <header>
@@ -59,23 +57,36 @@
   </button>
 </header>
 
-<div class="container">
-  {#if error}
-    <div class="error">{error}</div>
-  {/if}
+<div class="main-container">
+  <div class="left-panel">
+    {#if error}
+      <div class="error">{error}</div>
+    {/if}
 
-  <TemplateTable
-    {templates}
-    {loading}
-    on:select={handleSelectTemplate}
-  />
+    <TemplateTable
+      {templates}
+      {loading}
+      {selectedId}
+      on:select={handleSelectTemplate}
+    />
+  </div>
+
+  <div class="right-panel">
+    {#if showDetails}
+      <TemplateDetails
+        template={selectedTemplate}
+        isNew={isNewTemplate}
+        on:close={handleClose}
+        on:saved={handleSaved}
+      />
+    {:else}
+      <div class="right-panel-empty">
+        <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+        </svg>
+        <p>Seleziona un template dalla lista</p>
+        <small>oppure crea un nuovo template</small>
+      </div>
+    {/if}
+  </div>
 </div>
-
-{#if showModal}
-  <TemplateModal
-    template={selectedTemplate}
-    isNew={isNewTemplate}
-    on:close={handleModalClose}
-    on:saved={handleModalSaved}
-  />
-{/if}

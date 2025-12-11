@@ -3,6 +3,7 @@
   import type { Template, TemplateDto } from './api';
   import { getTemplate, createTemplate, updateTemplate, deleteTemplate } from './api';
   import QueryTestModal from './QueryTestModal.svelte';
+  import SqlEditor from './SqlEditor.svelte';
 
   export let template: Template | null = null;
   export let isNew = false;
@@ -227,14 +228,8 @@
       </div>
 
       <div class="form-group form-group-query">
-        <label for="querySql">Query SQL *</label>
-        <textarea
-          id="querySql"
-          class="query"
-          bind:value={form.querySql}
-          placeholder="SELECT * FROM ..."
-          required
-        ></textarea>
+        <label>Query SQL *</label>
+        <SqlEditor bind:value={form.querySql} placeholder="SELECT * FROM ..." />
       </div>
     {/if}
   </div>
@@ -319,12 +314,6 @@
     display: flex;
     flex-direction: column;
     min-height: 200px;
-  }
-
-  .form-group-query textarea.query {
-    flex: 1;
-    min-height: 150px;
-    resize: none;
   }
 
   .details-footer {

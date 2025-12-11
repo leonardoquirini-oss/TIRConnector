@@ -2,7 +2,8 @@
   import { onMount } from 'svelte';
   import TemplateTable from './lib/TemplateTable.svelte';
   import TemplateDetails from './lib/TemplateDetails.svelte';
-  import { getTemplates, type Template } from './lib/api';
+  import type { Template } from './lib/api';
+  import { getTemplates } from './lib/api';
 
   let templates: Template[] = [];
   let loading = true;
@@ -42,7 +43,15 @@
     isNewTemplate = false;
   }
 
-  function handleSaved() {
+  function handleSaved(event: CustomEvent<Template | null>) {
+    if (event.detail) {
+      selectedTemplate = event.detail;
+      isNewTemplate = false;
+    } else {
+      // Template eliminato: chiudi il pannello
+      selectedTemplate = null;
+      isNewTemplate = false;
+    }
     loadTemplates();
   }
 

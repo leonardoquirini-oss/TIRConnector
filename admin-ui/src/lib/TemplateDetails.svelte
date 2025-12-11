@@ -10,7 +10,7 @@
 
   const dispatch = createEventDispatcher<{
     close: void;
-    saved: void;
+    saved: Template | null;
   }>();
 
   let loading = false;
@@ -93,12 +93,13 @@
     error = '';
 
     try {
+      let savedTemplate: Template | null = null;
       if (isNew) {
-        await createTemplate(form);
+        savedTemplate = await createTemplate(form);
       } else if (template) {
-        await updateTemplate(template.idQueryTemplate, form);
+        savedTemplate = await updateTemplate(template.idQueryTemplate, form);
       }
-      dispatch('saved');
+      dispatch('saved', savedTemplate);
     } catch (e) {
       error = e instanceof Error ? e.message : 'Errore nel salvataggio';
     } finally {

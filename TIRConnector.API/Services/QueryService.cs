@@ -3,6 +3,7 @@ using Microsoft.Extensions.Options;
 using System.Data;
 using System.Data.Common;
 using System.Diagnostics;
+using System.Text.RegularExpressions;
 using TIRConnector.API.Configuration;
 using TIRConnector.API.Data;
 using TIRConnector.API.Models.DTOs;
@@ -37,7 +38,8 @@ public class QueryService : IQueryService
             await connection.OpenAsync(cancellationToken);
 
             using var command = connection.CreateCommand();
-            command.CommandText = request.Query;
+            // Converti parametri da formato :param (PostgreSQL) a @param (SQL Server)
+            command.CommandText = Regex.Replace(request.Query, @":(\w+)", "@$1");
             command.CommandTimeout = _querySettings.TimeoutSeconds;
 
             if (request.Parameters != null)
@@ -46,7 +48,7 @@ public class QueryService : IQueryService
                 {
                     var parameter = command.CreateParameter();
                     parameter.ParameterName = $"@{param.Key}";
-                    parameter.Value = param.Value ?? DBNull.Value;
+                    parameter.Value = ConvertParameterValue(param.Value);
                     command.Parameters.Add(parameter);
                 }
             }
@@ -120,7 +122,7 @@ public class QueryService : IQueryService
             {
                 var parameter = countCommand.CreateParameter();
                 parameter.ParameterName = $"@{param.Key}";
-                parameter.Value = param.Value ?? DBNull.Value;
+                parameter.Value = ConvertParameterValue(param.Value);
                 countCommand.Parameters.Add(parameter);
             }
         }
@@ -199,5 +201,31 @@ public class QueryService : IQueryService
             });
         }
         return columns;
+    }
+
+    /// <summary>
+    /// Converte i valori dei parametri da JsonElement a tipi nativi per SQL Server
+    /// </summary>
+    private object ConvertParameterValue(object? value)
+    {
+        if (value == null)
+            return DBNull.Value;
+
+        if (value is System.Text.Json.JsonElement jsonElement)
+        {
+            return jsonElement.ValueKind switch
+            {
+                System.Text.Json.JsonValueKind.String => (object?)jsonElement.GetString() ?? DBNull.Value,
+                System.Text.Json.JsonValueKind.Number => jsonElement.TryGetInt64(out var longVal)
+                    ? longVal
+                    : jsonElement.GetDouble(),
+                System.Text.Json.JsonValueKind.True => true,
+                System.Text.Json.JsonValueKind.False => false,
+                System.Text.Json.JsonValueKind.Null => DBNull.Value,
+                _ => jsonElement.ToString()
+            };
+        }
+
+        return value;
     }
 }

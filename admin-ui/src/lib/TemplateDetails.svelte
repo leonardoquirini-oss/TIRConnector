@@ -2,6 +2,7 @@
   import { createEventDispatcher } from 'svelte';
   import type { Template, TemplateDto } from './api';
   import { getTemplate, createTemplate, updateTemplate, deleteTemplate } from './api';
+  import QueryTestModal from './QueryTestModal.svelte';
 
   export let template: Template | null = null;
   export let isNew = false;
@@ -14,6 +15,7 @@
   let loading = false;
   let saving = false;
   let error = '';
+  let showTestModal = false;
 
   let form: TemplateDto = {
     name: '',
@@ -126,6 +128,14 @@
   function handleClose() {
     dispatch('close');
   }
+
+  function handleTestQuery() {
+    if (!form.querySql.trim()) {
+      error = 'Inserisci una query SQL prima di testarla';
+      return;
+    }
+    showTestModal = true;
+  }
 </script>
 
 <div class="details-panel">
@@ -236,6 +246,9 @@
       </button>
     {/if}
     <div style="flex: 1;"></div>
+    <button class="test-btn" on:click={handleTestQuery} disabled={saving || loading}>
+      Test Query
+    </button>
     <button class="secondary" on:click={handleClose} disabled={saving}>
       Chiudi
     </button>
@@ -244,6 +257,13 @@
     </button>
   </div>
 </div>
+
+{#if showTestModal}
+  <QueryTestModal
+    query={form.querySql}
+    on:close={() => showTestModal = false}
+  />
+{/if}
 
 <style>
   .details-panel {
@@ -320,5 +340,19 @@
     text-align: center;
     padding: 40px;
     color: #6b7280;
+  }
+
+  .test-btn {
+    background-color: #059669;
+    color: white;
+  }
+
+  .test-btn:hover {
+    background-color: #047857;
+  }
+
+  .test-btn:disabled {
+    background-color: #9ca3af;
+    cursor: not-allowed;
   }
 </style>

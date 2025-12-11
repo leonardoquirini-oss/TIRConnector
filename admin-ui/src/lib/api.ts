@@ -84,3 +84,25 @@ export async function deleteTemplate(id: number): Promise<void> {
     method: 'DELETE',
   });
 }
+
+export interface ColumnInfo {
+  name: string;
+  dataType: string;
+}
+
+export interface QueryResponse {
+  data: Record<string, unknown>[];
+  rowCount: number;
+  executionTimeMs: number;
+  columns: ColumnInfo[];
+}
+
+export async function executeQuery(
+  query: string,
+  parameters?: Record<string, unknown>
+): Promise<QueryResponse> {
+  return request<QueryResponse>(`${API_BASE}/execute`, {
+    method: 'POST',
+    body: JSON.stringify({ query, parameters }),
+  });
+}

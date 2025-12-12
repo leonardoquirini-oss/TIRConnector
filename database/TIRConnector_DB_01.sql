@@ -175,10 +175,7 @@ CREATE INDEX idx_query_templates_active ON query_templates(active) WHERE active 
 
 -- query_versions
 CREATE INDEX idx_query_tags_query_id ON query_tags(id_query_template);
-CREATE INDEX idx_query_tags_created_at ON query_versions(creation_date DESC);
-
-
-
+CREATE INDEX idx_query_tags_created_at ON query_tags(creation_date DESC);
 
 -- query_executions
 CREATE INDEX idx_query_executions_query_id ON query_executions(query_id);

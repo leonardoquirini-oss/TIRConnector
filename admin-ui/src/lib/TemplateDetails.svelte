@@ -1,12 +1,16 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
-  import type { Template, TemplateDto } from './api';
-  import { getTemplate, createTemplate, updateTemplate, deleteTemplate } from './api';
+  import type { Template, TemplateDto, QueryTagDetails } from './api';
+  import { getTemplate, createTemplate, updateTemplate, deleteTemplate, deleteTag } from './api';
   import QueryTestModal from './QueryTestModal.svelte';
+  import TagModal from './TagModal.svelte';
   import SqlEditor from './SqlEditor.svelte';
 
   export let template: Template | null = null;
   export let isNew = false;
+  export let viewingTag: QueryTagDetails | null = null;
+
+  $: isReadonly = viewingTag !== null;
 
   const dispatch = createEventDispatcher<{
     close: void;
@@ -17,6 +21,7 @@
   let saving = false;
   let error = '';
   let showTestModal = false;
+  let showTagModal = false;
 
   let form: TemplateDto = {
     name: '',
@@ -29,11 +34,26 @@
     active: true,
   };
 
-  // Load template data when editing
-  $: if (template && !isNew) {
+  // Load template or tag data
+  $: if (viewingTag) {
+    loadTagData(viewingTag);
+  } else if (template && !isNew) {
     loadTemplate(template.idQueryTemplate);
   } else if (isNew) {
     resetForm();
+  }
+
+  function loadTagData(tag: QueryTagDetails) {
+    form = {
+      name: tag.name || '',
+      description: tag.description,
+      category: null,
+      querySql: tag.querySql || '',
+      outputFormat: 'json',
+      maxResults: 10000,
+      timeoutSeconds: 30,
+      active: true,
+    };
   }
 
   function resetForm() {
@@ -108,22 +128,42 @@
   }
 
   async function handleDelete() {
-    if (!template || isNew) return;
+    if (viewingTag) {
+      // Elimina tag
+      if (!confirm(`Sei sicuro di voler eliminare questo tag?`)) {
+        return;
+      }
 
-    if (!confirm(`Sei sicuro di voler eliminare il template "${template.name}"?`)) {
-      return;
-    }
+      saving = true;
+      error = '';
 
-    saving = true;
-    error = '';
+      try {
+        await deleteTag(viewingTag.idQueryQueryTag);
+        dispatch('saved', null);
+      } catch (e) {
+        error = e instanceof Error ? e.message : 'Errore nell\'eliminazione del tag';
+      } finally {
+        saving = false;
+      }
+    } else {
+      // Elimina template
+      if (!template || isNew) return;
 
-    try {
-      await deleteTemplate(template.idQueryTemplate);
-      dispatch('saved');
-    } catch (e) {
-      error = e instanceof Error ? e.message : 'Errore nell\'eliminazione';
-    } finally {
-      saving = false;
+      if (!confirm(`Sei sicuro di voler eliminare il template "${template.name}"?`)) {
+        return;
+      }
+
+      saving = true;
+      error = '';
+
+      try {
+        await deleteTemplate(template.idQueryTemplate);
+        dispatch('saved', null);
+      } catch (e) {
+        error = e instanceof Error ? e.message : 'Errore nell\'eliminazione';
+      } finally {
+        saving = false;
+      }
     }
   }
 
@@ -138,11 +178,23 @@
     }
     showTestModal = true;
   }
+
+  function handleTag() {
+    if (!template || isNew) {
+      error = 'Salva prima il template per poter creare un tag';
+      return;
+    }
+    showTagModal = true;
+  }
+
+  function handleTagSaved() {
+    showTagModal = false;
+  }
 </script>
 
 <div class="details-panel">
   <div class="details-header">
-    <h2>{isNew ? 'Nuovo Template' : 'Modifica Template'}</h2>
+    <h2>{#if viewingTag}Tag: {viewingTag.changeReason || 'Senza messaggio'} - Versione: {viewingTag.version}{:else if isNew}Nuovo Template{:else}Template: {template?.name} - Versione: {template?.version}{/if}</h2>
     <button class="close-btn" on:click={handleClose}>&times;</button>
   </div>
 
@@ -163,6 +215,7 @@
             bind:value={form.name}
             placeholder="Nome del template"
             required
+            disabled={isReadonly}
           />
         </div>
 
@@ -173,84 +226,98 @@
             id="description"
             bind:value={form.description}
             placeholder="Descrizione del template"
+            disabled={isReadonly}
           />
         </div>
       </div>
 
-      <div class="form-row-4">
-        <div class="form-group">
-          <label for="category">Categoria</label>
-          <input
-            type="text"
-            id="category"
-            bind:value={form.category}
-            placeholder="es: reporting"
-          />
+      {#if !isReadonly}
+        <div class="form-row-4">
+          <div class="form-group">
+            <label for="category">Categoria</label>
+            <input
+              type="text"
+              id="category"
+              bind:value={form.category}
+              placeholder="es: reporting"
+            />
+          </div>
+
+          <div class="form-group">
+            <label for="outputFormat">Formato</label>
+            <select id="outputFormat" bind:value={form.outputFormat}>
+              <option value="json">JSON</option>
+              <option value="csv">CSV</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="maxResults">Max Results</label>
+            <input
+              type="number"
+              id="maxResults"
+              bind:value={form.maxResults}
+              min="1"
+            />
+          </div>
+
+          <div class="form-group">
+            <label for="timeoutSeconds">Timeout (s)</label>
+            <input
+              type="number"
+              id="timeoutSeconds"
+              bind:value={form.timeoutSeconds}
+              min="1"
+            />
+          </div>
         </div>
 
         <div class="form-group">
-          <label for="outputFormat">Formato</label>
-          <select id="outputFormat" bind:value={form.outputFormat}>
-            <option value="json">JSON</option>
-            <option value="csv">CSV</option>
-          </select>
+          <div class="checkbox-group">
+            <input
+              type="checkbox"
+              id="active"
+              bind:checked={form.active}
+            />
+            <label for="active">Attiva</label>
+          </div>
         </div>
-
-        <div class="form-group">
-          <label for="maxResults">Max Results</label>
-          <input
-            type="number"
-            id="maxResults"
-            bind:value={form.maxResults}
-            min="1"
-          />
-        </div>
-
-        <div class="form-group">
-          <label for="timeoutSeconds">Timeout (s)</label>
-          <input
-            type="number"
-            id="timeoutSeconds"
-            bind:value={form.timeoutSeconds}
-            min="1"
-          />
-        </div>
-      </div>
-
-      <div class="form-group">
-        <div class="checkbox-group">
-          <input
-            type="checkbox"
-            id="active"
-            bind:checked={form.active}
-          />
-          <label for="active">Attiva</label>
-        </div>
-      </div>
+      {/if}
 
       <div class="form-group form-group-query">
         <label>Query SQL *</label>
-        <SqlEditor bind:value={form.querySql} placeholder="SELECT * FROM ..." />
+        <SqlEditor bind:value={form.querySql} placeholder="SELECT * FROM ..." readonly={isReadonly} />
       </div>
     {/if}
   </div>
 
   <div class="details-footer">
-    {#if !isNew && template}
+    {#if viewingTag}
+      <button class="danger" on:click={handleDelete} disabled={saving}>
+        Elimina Tag
+      </button>
+    {:else if !isNew && template}
       <button class="danger" on:click={handleDelete} disabled={saving}>
         Elimina
       </button>
     {/if}
     <div style="flex: 1;"></div>
+    {#if !isReadonly && !isNew && template}
+      <button class="tag-btn" on:click={handleTag} disabled={saving || loading}>
+        Tag
+      </button>
+    {/if}
     <button class="test-btn" on:click={handleTestQuery} disabled={saving || loading}>
       Test Query
     </button>
     <button class="secondary" on:click={handleClose} disabled={saving}>
       Chiudi
     </button>
-    <button class="primary" on:click={handleSave} disabled={saving || loading}>
-      {saving ? 'Salvataggio...' : 'Salva'}
-    </button>
+    {#if !isReadonly}
+      <button class="primary" on:click={handleSave} disabled={saving || loading}>
+        {saving ? 'Salvataggio...' : 'Salva'}
+      </button>
+    {/if}
   </div>
 </div>
 
@@ -258,6 +325,14 @@
   <QueryTestModal
     query={form.querySql}
     on:close={() => showTestModal = false}
+  />
+{/if}
+
+{#if showTagModal && template}
+  <TagModal
+    templateId={template.idQueryTemplate}
+    on:close={() => showTagModal = false}
+    on:saved={handleTagSaved}
   />
 {/if}
 
@@ -342,6 +417,20 @@
   }
 
   .test-btn:disabled {
+    background-color: #9ca3af;
+    cursor: not-allowed;
+  }
+
+  .tag-btn {
+    background-color: #7c3aed;
+    color: white;
+  }
+
+  .tag-btn:hover {
+    background-color: #6d28d9;
+  }
+
+  .tag-btn:disabled {
     background-color: #9ca3af;
     cursor: not-allowed;
   }

@@ -22,6 +22,23 @@ export interface Template {
   active: boolean;
   creationDate: string;
   updateDate: string | null;
+  tagCount: number;
+}
+
+export interface QueryTag {
+  idQueryQueryTag: number;
+  idQueryTemplate: number;
+  version: number;
+  changeReason: string | null;
+  changeType: string | null;
+  creationDate: string;
+}
+
+export interface QueryTagDetails extends QueryTag {
+  querySql: string;
+  params: string | null;
+  name: string | null;
+  description: string | null;
 }
 
 export interface TemplateDto {
@@ -83,6 +100,32 @@ export async function deleteTemplate(id: number): Promise<void> {
   return request<void>(`${API_BASE}/templates/${id}`, {
     method: 'DELETE',
   });
+}
+
+export async function createTag(templateId: number, data: QueryTagCreateDto): Promise<void> {
+  return request<void>(`${API_BASE}/templates/${templateId}/tag`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function getTemplateTags(templateId: number): Promise<QueryTag[]> {
+  return request<QueryTag[]>(`${API_BASE}/templates/${templateId}/tags`);
+}
+
+export async function getTag(tagId: number): Promise<QueryTagDetails> {
+  return request<QueryTagDetails>(`${API_BASE}/tags/${tagId}`);
+}
+
+export async function deleteTag(tagId: number): Promise<void> {
+  return request<void>(`${API_BASE}/tags/${tagId}`, {
+    method: 'DELETE',
+  });
+}
+
+export interface QueryTagCreateDto {
+  changeReason: string;
+  changeType: 'minor' | 'major' | 'bugfix' | 'rollback';
 }
 
 export interface ColumnInfo {

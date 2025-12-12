@@ -102,6 +102,9 @@ public class QueryTemplateService : IQueryTemplateService
             throw new KeyNotFoundException($"Template con ID {id} non trovato");
         }
 
+        // Incrementa la versione solo se il testo della query SQL è cambiato
+        var querySqlChanged = template.QuerySql != dto.QuerySql;
+
         template.Name = dto.Name;
         template.Description = dto.Description;
         template.Category = dto.Category;
@@ -111,12 +114,16 @@ public class QueryTemplateService : IQueryTemplateService
         template.TimeoutSeconds = dto.TimeoutSeconds;
         template.Active = dto.Active;
         template.UpdateDate = DateTime.UtcNow;
-        template.Version++;
+
+        if (querySqlChanged)
+        {
+            template.Version++;
+        }
 
         await _postgresContext.SaveChangesAsync(cancellationToken);
 
-        _logger.LogInformation("Updated template: {TemplateName} (ID: {TemplateId}, Version: {Version})",
-            template.Name, template.IdQueryTemplate, template.Version);
+        _logger.LogInformation("Updated template: {TemplateName} (ID: {TemplateId}, Version: {Version}, QueryChanged: {QueryChanged})",
+            template.Name, template.IdQueryTemplate, template.Version, querySqlChanged);
 
         return template;
     }
@@ -279,5 +286,81 @@ public class QueryTemplateService : IQueryTemplateService
         }
 
         return value;
+    }
+
+    public async Task<QueryTag> CreateTagAsync(int templateId, QueryTagCreateDto dto, CancellationToken cancellationToken = default)
+    {
+        var template = await _postgresContext.QueryTemplates
+            .FirstOrDefaultAsync(t => t.IdQueryTemplate == templateId, cancellationToken);
+
+        if (template == null)
+        {
+            throw new KeyNotFoundException($"Template con ID {templateId} non trovato");
+        }
+
+        // Genera nuovo ID dalla sequenza
+        var nextId = await _postgresContext.Database
+            .SqlQuery<int>($"SELECT nextval('s_query_tags')::int AS \"Value\"")
+            .FirstOrDefaultAsync(cancellationToken);
+
+        var tag = new QueryTag
+        {
+            IdQueryQueryTag = nextId,
+            IdQueryTemplate = templateId,
+            Version = template.Version,
+            QuerySql = template.QuerySql,
+            Params = template.Params,
+            Name = template.Name,
+            Description = template.Description,
+            CreationDate = DateTime.UtcNow,
+            ChangeReason = dto.ChangeReason,
+            ChangeType = dto.ChangeType
+        };
+
+        _postgresContext.QueryTags.Add(tag);
+        await _postgresContext.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation("Created tag for template: {TemplateName} (ID: {TemplateId}, TagId: {TagId}, ChangeType: {ChangeType})",
+            template.Name, templateId, tag.IdQueryQueryTag, dto.ChangeType);
+
+        return tag;
+    }
+
+    public async Task<IEnumerable<QueryTag>> GetTagsByTemplateIdAsync(int templateId, CancellationToken cancellationToken = default)
+    {
+        return await _postgresContext.QueryTags
+            .Where(t => t.IdQueryTemplate == templateId)
+            .OrderByDescending(t => t.CreationDate)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<Dictionary<int, int>> GetTagCountsAsync(CancellationToken cancellationToken = default)
+    {
+        return await _postgresContext.QueryTags
+            .GroupBy(t => t.IdQueryTemplate)
+            .Select(g => new { TemplateId = g.Key, Count = g.Count() })
+            .ToDictionaryAsync(x => x.TemplateId, x => x.Count, cancellationToken);
+    }
+
+    public async Task<QueryTag?> GetTagByIdAsync(int tagId, CancellationToken cancellationToken = default)
+    {
+        return await _postgresContext.QueryTags
+            .FirstOrDefaultAsync(t => t.IdQueryQueryTag == tagId, cancellationToken);
+    }
+
+    public async Task DeleteTagAsync(int tagId, CancellationToken cancellationToken = default)
+    {
+        var tag = await _postgresContext.QueryTags
+            .FirstOrDefaultAsync(t => t.IdQueryQueryTag == tagId, cancellationToken);
+
+        if (tag == null)
+        {
+            throw new KeyNotFoundException($"Tag con ID {tagId} non trovato");
+        }
+
+        _postgresContext.QueryTags.Remove(tag);
+        await _postgresContext.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation("Deleted tag: {TagId} (TemplateId: {TemplateId})", tagId, tag.IdQueryTemplate);
     }
 }

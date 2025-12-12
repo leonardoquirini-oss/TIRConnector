@@ -47,4 +47,29 @@ public interface IQueryTemplateService
     /// Esegue un template sul database TIR (SQL Server) usando il nome del template
     /// </summary>
     Task<QueryResponse> ExecuteTemplateAsync(TemplateExecuteRequest request, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Crea un tag (snapshot) di un template esistente
+    /// </summary>
+    Task<QueryTag> CreateTagAsync(int templateId, QueryTagCreateDto dto, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Recupera tutti i tag di un template
+    /// </summary>
+    Task<IEnumerable<QueryTag>> GetTagsByTemplateIdAsync(int templateId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Conta i tag per ogni template (per visualizzazione nella lista)
+    /// </summary>
+    Task<Dictionary<int, int>> GetTagCountsAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Recupera un tag per ID
+    /// </summary>
+    Task<QueryTag?> GetTagByIdAsync(int tagId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Elimina un tag
+    /// </summary>
+    Task DeleteTagAsync(int tagId, CancellationToken cancellationToken = default);
 }

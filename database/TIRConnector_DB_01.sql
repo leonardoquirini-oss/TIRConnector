@@ -4,7 +4,7 @@
 
 
 CREATE SEQUENCE IF NOT EXISTS s_query_templates START 1000;
-CREATE SEQUENCE IF NOT EXISTS s_query_versions START 1000;
+CREATE SEQUENCE IF NOT EXISTS s_query_tags START 1000;
 
 -- ============================================================================
 -- TABELLA PRINCIPALE: query_templates
@@ -65,23 +65,19 @@ COMMENT ON COLUMN query_templates.deprecation_date IS 'Data pianificata per la r
 -- TABELLA STORICO: query_versions
 -- Mantiene tutte le versioni precedenti di ogni query
 -- ============================================================================
-CREATE TABLE query_versions (
-    id_query_version integer PRIMARY KEY ,
+CREATE TABLE query_tags (
+    id_query_query_tag integer PRIMARY KEY ,
     id_query_template integer NOT NULL REFERENCES query_templates(id_query_template) ,
-    version INT NOT NULL,
-    
+    version INT NOT NULL,    
     -- Snapshot completo della query a questa versione
     query_sql TEXT NOT NULL,
     params JSONB,
     name VARCHAR(200),
-    description TEXT,
-    
-    creation_date TIMESTAMP DEFAULT NOW(),
-    
+    description TEXT,    
+    creation_date TIMESTAMP DEFAULT NOW(),    
     -- Motivo del cambiamento
     change_reason TEXT,
-    change_type VARCHAR(20),  -- 'minor', 'major', 'bugfix', 'rollback'
-    
+    change_type VARCHAR(20),  -- 'minor', 'major', 'bugfix', 'rollback'    
     -- Diffs (opzionale, per UI)
     sql_diff TEXT  -- diff testuale della query
 );
@@ -178,8 +174,11 @@ CREATE INDEX idx_query_templates_tags ON query_templates USING GIN(tags);
 CREATE INDEX idx_query_templates_active ON query_templates(active) WHERE active = true;
 
 -- query_versions
-CREATE INDEX idx_query_versions_query_id ON query_versions(query_id);
-CREATE INDEX idx_query_versions_created_at ON query_versions(created_at DESC);
+CREATE INDEX idx_query_tags_query_id ON query_tags(id_query_template);
+CREATE INDEX idx_query_tags_created_at ON query_versions(creation_date DESC);
+
+
+
 
 -- query_executions
 CREATE INDEX idx_query_executions_query_id ON query_executions(query_id);

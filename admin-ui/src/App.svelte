@@ -2,8 +2,9 @@
   import { onMount } from 'svelte';
   import TemplateTable from './lib/TemplateTable.svelte';
   import TemplateDetails from './lib/TemplateDetails.svelte';
-  import type { Template } from './lib/api';
-  import { getTemplates } from './lib/api';
+  import DiffModal from './lib/DiffModal.svelte';
+  import type { Template, QueryTag, QueryTagDetails } from './lib/api';
+  import { getTemplates, getTemplate, getTag } from './lib/api';
 
   let templates: Template[] = [];
   let loading = true;
@@ -11,6 +12,11 @@
 
   let selectedTemplate: Template | null = null;
   let isNewTemplate = false;
+  let viewingTag: QueryTagDetails | null = null;
+
+  // Diff modal state
+  let showDiffModal = false;
+  let diffData: { currentSql: string; tagSql: string; templateName: string; tagVersion: number } | null = null;
 
   onMount(() => {
     loadTemplates();
@@ -31,16 +37,48 @@
   function handleNewTemplate() {
     selectedTemplate = null;
     isNewTemplate = true;
+    viewingTag = null;
   }
 
   function handleSelectTemplate(event: CustomEvent<Template>) {
     selectedTemplate = event.detail;
     isNewTemplate = false;
+    viewingTag = null;
+  }
+
+  async function handleViewTag(event: CustomEvent<QueryTag>) {
+    try {
+      viewingTag = await getTag(event.detail.idQueryQueryTag);
+      selectedTemplate = null;
+      isNewTemplate = false;
+    } catch (e) {
+      console.error('Error loading tag:', e);
+    }
+  }
+
+  async function handleDiffTag(event: CustomEvent<{ tag: QueryTag; template: Template }>) {
+    const { tag, template } = event.detail;
+    try {
+      const [templateDetails, tagDetails] = await Promise.all([
+        getTemplate(template.idQueryTemplate),
+        getTag(tag.idQueryQueryTag)
+      ]);
+      diffData = {
+        currentSql: templateDetails.querySql || '',
+        tagSql: tagDetails.querySql,
+        templateName: template.name,
+        tagVersion: tag.version
+      };
+      showDiffModal = true;
+    } catch (e) {
+      console.error('Error loading diff data:', e);
+    }
   }
 
   function handleClose() {
     selectedTemplate = null;
     isNewTemplate = false;
+    viewingTag = null;
   }
 
   function handleSaved(event: CustomEvent<Template | null>) {
@@ -48,15 +86,16 @@
       selectedTemplate = event.detail;
       isNewTemplate = false;
     } else {
-      // Template eliminato: chiudi il pannello
+      // Template o tag eliminato: chiudi il pannello
       selectedTemplate = null;
       isNewTemplate = false;
+      viewingTag = null;
     }
     loadTemplates();
   }
 
   $: selectedId = selectedTemplate?.idQueryTemplate ?? null;
-  $: showDetails = selectedTemplate !== null || isNewTemplate;
+  $: showDetails = selectedTemplate !== null || isNewTemplate || viewingTag !== null;
 </script>
 
 <header>
@@ -77,6 +116,8 @@
       {loading}
       {selectedId}
       on:select={handleSelectTemplate}
+      on:viewTag={handleViewTag}
+      on:diffTag={handleDiffTag}
     />
   </div>
 
@@ -85,6 +126,7 @@
       <TemplateDetails
         template={selectedTemplate}
         isNew={isNewTemplate}
+        {viewingTag}
         on:close={handleClose}
         on:saved={handleSaved}
       />
@@ -99,3 +141,13 @@
     {/if}
   </div>
 </div>
+
+{#if showDiffModal && diffData}
+  <DiffModal
+    currentSql={diffData.currentSql}
+    tagSql={diffData.tagSql}
+    templateName={diffData.templateName}
+    tagVersion={diffData.tagVersion}
+    on:close={() => showDiffModal = false}
+  />
+{/if}

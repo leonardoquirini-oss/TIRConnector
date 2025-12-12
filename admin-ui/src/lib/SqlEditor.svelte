@@ -8,6 +8,7 @@
 
   export let value: string = '';
   export let placeholder: string = 'SELECT * FROM ...';
+  export let readonly: boolean = false;
 
   let container: HTMLDivElement;
   let view: EditorView;
@@ -65,6 +66,8 @@
           },
         }),
         placeholder ? EditorView.contentAttributes.of({ 'data-placeholder': placeholder }) : [],
+        readonly ? EditorState.readOnly.of(true) : [],
+        readonly ? EditorView.editable.of(false) : [],
       ],
     });
 

@@ -87,6 +87,9 @@ public class QueryController : ControllerBase
             ? await _queryTemplateService.GetActiveTemplatesAsync(cancellationToken)
             : await _queryTemplateService.GetAllTemplatesAsync(cancellationToken);
 
+        // Recupera il conteggio dei tag per ogni template
+        var tagCounts = await _queryTemplateService.GetTagCountsAsync(cancellationToken);
+
         // Restituisce le informazioni essenziali (senza la query SQL)
         var result = templates.Select(t => new
         {
@@ -100,7 +103,8 @@ public class QueryController : ControllerBase
             t.Version,
             t.Active,
             t.CreationDate,
-            t.UpdateDate
+            t.UpdateDate,
+            TagCount = tagCounts.GetValueOrDefault(t.IdQueryTemplate, 0)
         });
 
         return Ok(result);
@@ -250,6 +254,132 @@ public class QueryController : ControllerBase
             return NotFound(new ErrorResponse
             {
                 Error = "TemplateNotFound",
+                Message = ex.Message,
+                Timestamp = DateTime.UtcNow
+            });
+        }
+    }
+
+    /// <summary>
+    /// Create a tag (snapshot) for a query template
+    /// </summary>
+    [HttpPost("templates/{id}/tag")]
+    [ProducesResponseType(typeof(object), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> CreateTag(int id, [FromBody] QueryTagCreateDto dto, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var tag = await _queryTemplateService.CreateTagAsync(id, dto, cancellationToken);
+
+            return CreatedAtAction(nameof(GetTemplateById), new { id = tag.IdQueryTemplate }, new
+            {
+                tag.IdQueryQueryTag,
+                tag.IdQueryTemplate,
+                tag.Version,
+                tag.Name,
+                tag.ChangeReason,
+                tag.ChangeType,
+                tag.CreationDate
+            });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new ErrorResponse
+            {
+                Error = "TemplateNotFound",
+                Message = ex.Message,
+                Timestamp = DateTime.UtcNow
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating tag for template {TemplateId}", id);
+            return BadRequest(new ErrorResponse
+            {
+                Error = ex.GetType().Name,
+                Message = ex.Message,
+                Timestamp = DateTime.UtcNow
+            });
+        }
+    }
+
+    /// <summary>
+    /// Get all tags for a query template
+    /// </summary>
+    [HttpGet("templates/{id}/tags")]
+    [ProducesResponseType(typeof(IEnumerable<object>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetTemplateTags(int id, CancellationToken cancellationToken)
+    {
+        var tags = await _queryTemplateService.GetTagsByTemplateIdAsync(id, cancellationToken);
+
+        var result = tags.Select(t => new
+        {
+            t.IdQueryQueryTag,
+            t.IdQueryTemplate,
+            t.Version,
+            t.ChangeReason,
+            t.ChangeType,
+            t.CreationDate
+        });
+
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Get a specific tag by ID (includes full details)
+    /// </summary>
+    [HttpGet("tags/{id}")]
+    [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetTag(int id, CancellationToken cancellationToken)
+    {
+        var tag = await _queryTemplateService.GetTagByIdAsync(id, cancellationToken);
+
+        if (tag == null)
+        {
+            return NotFound(new ErrorResponse
+            {
+                Error = "TagNotFound",
+                Message = $"Tag con ID {id} non trovato",
+                Timestamp = DateTime.UtcNow
+            });
+        }
+
+        return Ok(new
+        {
+            tag.IdQueryQueryTag,
+            tag.IdQueryTemplate,
+            tag.Version,
+            tag.QuerySql,
+            tag.Params,
+            tag.Name,
+            tag.Description,
+            tag.ChangeReason,
+            tag.ChangeType,
+            tag.CreationDate
+        });
+    }
+
+    /// <summary>
+    /// Delete a tag
+    /// </summary>
+    [HttpDelete("tags/{id}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> DeleteTag(int id, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await _queryTemplateService.DeleteTagAsync(id, cancellationToken);
+            return NoContent();
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new ErrorResponse
+            {
+                Error = "TagNotFound",
                 Message = ex.Message,
                 Timestamp = DateTime.UtcNow
             });

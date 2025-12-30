@@ -2,6 +2,7 @@ declare global {
   interface Window {
     APP_CONFIG?: {
       apiKey?: string;
+      appName?: string;
     };
   }
 }

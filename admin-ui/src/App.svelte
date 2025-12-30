@@ -6,6 +6,8 @@
   import type { Template, QueryTag, QueryTagDetails } from './lib/api';
   import { getTemplates, getTemplate, getTag } from './lib/api';
 
+  const appName = window.APP_CONFIG?.appName || 'TIR';
+
   let templates: Template[] = [];
   let loading = true;
   let error = '';
@@ -99,7 +101,7 @@
 </script>
 
 <header>
-  <h1>TIR Query Templates Admin</h1>
+  <h1>{appName} Query Templates Admin</h1>
   <button class="primary" on:click={handleNewTemplate}>
     + Nuovo Template
   </button>

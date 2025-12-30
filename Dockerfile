@@ -25,9 +25,19 @@ RUN dotnet build "TIRConnector.API.csproj" -c Release -o /app/build
 FROM build AS publish
 RUN dotnet publish "TIRConnector.API.csproj" -c Release -o /app/publish /p:UseAppHost=false
 
-# Stage 4: Runtime
-FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS final
+# Stage 4: Runtime (Alpine has different SSL config, more compatible with older SQL Server)
+FROM mcr.microsoft.com/dotnet/aspnet:8.0-alpine AS final
 WORKDIR /app
+
+# Install ICU libs for globalization support and bash for entrypoint
+RUN apk add --no-cache icu-libs icu-data-full curl bash openssl
+
+# Configure OpenSSL for older SQL Server compatibility
+RUN sed -i 's/providers = provider_sect/providers = provider_sect\n\n[openssl_init]\nssl_conf = ssl_sect\n\n[ssl_sect]\nsystem_default = system_default_sect\n\n[system_default_sect]\nMinProtocol = TLSv1\nCipherString = DEFAULT:@SECLEVEL=0/' /etc/ssl/openssl.cnf || true
+
+# Disable globalization invariant mode to enable full culture support
+ENV DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=false
+ENV OPENSSL_CONF=/etc/ssl/openssl.cnf
 
 # Create directories
 RUN mkdir -p /app/logs /app/wwwroot/admin

@@ -118,8 +118,6 @@
       {loading}
       {selectedId}
       on:select={handleSelectTemplate}
-      on:viewTag={handleViewTag}
-      on:diffTag={handleDiffTag}
     />
   </div>
 

@@ -98,6 +98,35 @@
 
   $: selectedId = selectedTemplate?.idQueryTemplate ?? null;
   $: showDetails = selectedTemplate !== null || isNewTemplate || viewingTag !== null;
+
+  // Resizable splitter
+  let leftPanelWidth = 30; // percentage
+  let dragging = false;
+
+  function onSplitterMouseDown(e: MouseEvent) {
+    e.preventDefault();
+    dragging = true;
+    const container = (e.target as HTMLElement).parentElement!;
+    const containerRect = container.getBoundingClientRect();
+
+    function onMouseMove(ev: MouseEvent) {
+      const pct = ((ev.clientX - containerRect.left) / containerRect.width) * 100;
+      leftPanelWidth = Math.min(60, Math.max(15, pct));
+    }
+
+    function onMouseUp() {
+      dragging = false;
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    }
+
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+  }
 </script>
 
 <header>
@@ -107,8 +136,8 @@
   </button>
 </header>
 
-<div class="main-container">
-  <div class="left-panel">
+<div class="main-container" class:dragging>
+  <div class="left-panel" style="width: {leftPanelWidth}%">
     {#if error}
       <div class="error">{error}</div>
     {/if}
@@ -121,6 +150,9 @@
     />
   </div>
 
+  <!-- svelte-ignore a11y-no-static-element-interactions -->
+  <div class="splitter" on:mousedown={onSplitterMouseDown}></div>
+
   <div class="right-panel">
     {#if showDetails}
       <TemplateDetails
@@ -129,6 +161,8 @@
         {viewingTag}
         on:close={handleClose}
         on:saved={handleSaved}
+        on:viewTag={handleViewTag}
+        on:diffTag={handleDiffTag}
       />
     {:else}
       <div class="right-panel-empty">

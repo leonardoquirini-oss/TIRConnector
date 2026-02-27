@@ -1,7 +1,7 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
-  import type { Template, TemplateDto, QueryTagDetails } from './api';
-  import { getTemplate, createTemplate, updateTemplate, deleteTemplate, deleteTag } from './api';
+  import type { Template, TemplateDto, QueryTagDetails, QueryTag } from './api';
+  import { getTemplate, createTemplate, updateTemplate, deleteTemplate, deleteTag, getTemplateTags } from './api';
   import QueryTestModal from './QueryTestModal.svelte';
   import TagModal from './TagModal.svelte';
   import SqlEditor from './SqlEditor.svelte';
@@ -15,6 +15,8 @@
   const dispatch = createEventDispatcher<{
     close: void;
     saved: Template | null;
+    viewTag: QueryTag;
+    diffTag: { tag: QueryTag; template: Template };
   }>();
 
   let loading = false;
@@ -22,6 +24,10 @@
   let error = '';
   let showTestModal = false;
   let showTagModal = false;
+
+  let tags: QueryTag[] = [];
+  let loadingTags = false;
+  let showTags = false;
 
   let form: TemplateDto = {
     name: '',
@@ -187,8 +193,50 @@
     showTagModal = true;
   }
 
+  $: if (template && !isNew && !viewingTag) {
+    loadTags(template.idQueryTemplate);
+  }
+
+  async function loadTags(templateId: number) {
+    loadingTags = true;
+    try {
+      tags = await getTemplateTags(templateId);
+    } catch (e) {
+      console.error('Error loading tags:', e);
+      tags = [];
+    } finally {
+      loadingTags = false;
+    }
+  }
+
+  function handleViewTag(tag: QueryTag) {
+    dispatch('viewTag', tag);
+  }
+
+  function handleDiffTag(tag: QueryTag) {
+    if (!template) return;
+    dispatch('diffTag', { tag, template });
+  }
+
+  async function handleDeleteSingleTag(tag: QueryTag) {
+    if (!confirm(`Sei sicuro di voler eliminare il tag v${tag.version}?`)) return;
+    try {
+      await deleteTag(tag.idQueryQueryTag);
+      if (template) loadTags(template.idQueryTemplate);
+    } catch (e) {
+      error = e instanceof Error ? e.message : 'Errore nell\'eliminazione del tag';
+    }
+  }
+
+  function formatDate(dateStr: string): string {
+    const d = new Date(dateStr);
+    const pad = (n: number) => n.toString().padStart(2, '0');
+    return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  }
+
   function handleTagSaved() {
     showTagModal = false;
+    if (template) loadTags(template.idQueryTemplate);
   }
 </script>
 
@@ -206,7 +254,7 @@
         <div class="error">{error}</div>
       {/if}
 
-      <div class="form-row">
+      <div class="form-row-header" class:readonly={isReadonly}>
         <div class="form-group">
           <label for="name">Nome *</label>
           <input
@@ -229,10 +277,8 @@
             disabled={isReadonly}
           />
         </div>
-      </div>
 
-      {#if !isReadonly}
-        <div class="form-row-4">
+        {#if !isReadonly}
           <div class="form-group">
             <label for="category">Categoria</label>
             <input
@@ -243,37 +289,7 @@
             />
           </div>
 
-          <div class="form-group">
-            <label for="outputFormat">Formato</label>
-            <select id="outputFormat" bind:value={form.outputFormat}>
-              <option value="json">JSON</option>
-              <option value="csv">CSV</option>
-            </select>
-          </div>
-
-          <div class="form-group">
-            <label for="maxResults">Max Results</label>
-            <input
-              type="number"
-              id="maxResults"
-              bind:value={form.maxResults}
-              min="1"
-            />
-          </div>
-
-          <div class="form-group">
-            <label for="timeoutSeconds">Timeout (s)</label>
-            <input
-              type="number"
-              id="timeoutSeconds"
-              bind:value={form.timeoutSeconds}
-              min="1"
-            />
-          </div>
-        </div>
-
-        <div class="form-group">
-          <div class="checkbox-group">
+          <div class="checkbox-group-inline">
             <input
               type="checkbox"
               id="active"
@@ -281,13 +297,49 @@
             />
             <label for="active">Attiva</label>
           </div>
-        </div>
-      {/if}
+        {/if}
+      </div>
 
       <div class="form-group form-group-query">
         <label>Query SQL *</label>
         <SqlEditor bind:value={form.querySql} placeholder="SELECT * FROM ..." readonly={isReadonly} />
       </div>
+
+      {#if !isNew && !isReadonly && template}
+        <div class="tag-history">
+          <button class="tag-history-header" on:click={() => showTags = !showTags}>
+            <span class="chevron" class:open={showTags}>&#9654;</span>
+            <span>Cronologia Tag</span>
+            <span class="tag-count-badge">{tags.length}</span>
+          </button>
+
+          {#if showTags}
+            {#if loadingTags}
+              <div class="tag-empty">Caricamento tag...</div>
+            {:else if tags.length === 0}
+              <div class="tag-empty">Nessun tag creato</div>
+            {:else}
+              <div class="tag-list">
+                {#each tags as tag (tag.idQueryQueryTag)}
+                  <div class="tag-item">
+                    <span class="tag-version-badge">v{tag.version}</span>
+                    {#if tag.changeType}
+                      <span class="tag-type-badge {tag.changeType}">{tag.changeType}</span>
+                    {/if}
+                    <span class="tag-reason" title={tag.changeReason || ''}>{tag.changeReason || '-'}</span>
+                    <span class="tag-date">{formatDate(tag.creationDate)}</span>
+                    <div class="tag-actions">
+                      <button class="tag-action-btn" title="Visualizza SQL" on:click={() => handleViewTag(tag)}>SQL</button>
+                      <button class="tag-action-btn" title="Confronta con versione attuale" on:click={() => handleDiffTag(tag)}>Diff</button>
+                      <button class="tag-action-btn danger" title="Elimina tag" on:click={() => handleDeleteSingleTag(tag)}>&#128465;</button>
+                    </div>
+                  </div>
+                {/each}
+              </div>
+            {/if}
+          {/if}
+        </div>
+      {/if}
     {/if}
   </div>
 
@@ -380,16 +432,42 @@
   .details-body {
     flex: 1;
     overflow-y: auto;
-    padding: 20px;
+    padding: 16px 20px;
     display: flex;
     flex-direction: column;
+  }
+
+  .details-body :global(.form-group) {
+    margin-bottom: 8px;
+  }
+
+  .form-row-header {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr auto;
+    gap: 12px;
+    margin-bottom: 4px;
+  }
+
+  .form-row-header.readonly {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .checkbox-group-inline {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding-top: 22px;
+  }
+
+  .checkbox-group-inline input[type="checkbox"] {
+    width: auto;
   }
 
   .form-group-query {
     flex: 1;
     display: flex;
     flex-direction: column;
-    min-height: 200px;
+    min-height: 250px;
   }
 
   .details-footer {
@@ -433,5 +511,158 @@
   .tag-btn:disabled {
     background-color: #9ca3af;
     cursor: not-allowed;
+  }
+
+  .tag-history {
+    border-top: 1px solid #e5e7eb;
+    margin-top: 16px;
+    padding-top: 12px;
+  }
+
+  .tag-history-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #374151;
+    padding: 4px 0;
+    width: 100%;
+    text-align: left;
+  }
+
+  .tag-history-header:hover {
+    color: #111827;
+  }
+
+  .chevron {
+    font-size: 0.7rem;
+    transition: transform 0.2s;
+    display: inline-block;
+  }
+
+  .chevron.open {
+    transform: rotate(90deg);
+  }
+
+  .tag-count-badge {
+    background: #e5e7eb;
+    color: #374151;
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 1px 7px;
+    border-radius: 10px;
+  }
+
+  .tag-list {
+    max-height: 200px;
+    overflow-y: auto;
+    margin-top: 8px;
+  }
+
+  .tag-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 4px;
+    border-radius: 4px;
+    font-size: 0.85rem;
+  }
+
+  .tag-item:hover {
+    background: #f9fafb;
+  }
+
+  .tag-version-badge {
+    background: #374151;
+    color: white;
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 1px 6px;
+    border-radius: 4px;
+    white-space: nowrap;
+  }
+
+  .tag-type-badge {
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 1px 6px;
+    border-radius: 4px;
+    white-space: nowrap;
+    text-transform: uppercase;
+  }
+
+  .tag-type-badge.minor {
+    background: #dbeafe;
+    color: #1d4ed8;
+  }
+
+  .tag-type-badge.major {
+    background: #ffedd5;
+    color: #c2410c;
+  }
+
+  .tag-type-badge.bugfix {
+    background: #dcfce7;
+    color: #15803d;
+  }
+
+  .tag-type-badge.rollback {
+    background: #fee2e2;
+    color: #b91c1c;
+  }
+
+  .tag-reason {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: #4b5563;
+    min-width: 0;
+  }
+
+  .tag-date {
+    color: #9ca3af;
+    font-size: 0.78rem;
+    white-space: nowrap;
+  }
+
+  .tag-actions {
+    display: flex;
+    gap: 4px;
+    flex-shrink: 0;
+  }
+
+  .tag-action-btn {
+    background: #f3f4f6;
+    border: 1px solid #e5e7eb;
+    color: #374151;
+    font-size: 0.75rem;
+    padding: 2px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    line-height: 1.4;
+  }
+
+  .tag-action-btn:hover {
+    background: #e5e7eb;
+  }
+
+  .tag-action-btn.danger {
+    color: #b91c1c;
+  }
+
+  .tag-action-btn.danger:hover {
+    background: #fee2e2;
+  }
+
+  .tag-empty {
+    text-align: center;
+    color: #9ca3af;
+    padding: 16px 0;
+    font-size: 0.85rem;
   }
 </style>

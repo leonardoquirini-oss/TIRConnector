@@ -267,16 +267,33 @@ tr:last-child td {
 }
 
 .left-panel {
-  width: 30%;
-  min-width: 350px;
+  min-width: 250px;
   overflow-y: auto;
   padding: 20px;
-  border-right: 1px solid var(--gray-200);
-  background: var(--gray-100);
+  background: white;
+  flex-shrink: 0;
+}
+
+.splitter {
+  width: 5px;
+  cursor: col-resize;
+  background: var(--gray-200);
+  flex-shrink: 0;
+  transition: background-color 0.15s;
+}
+
+.splitter:hover,
+.main-container.dragging .splitter {
+  background: var(--primary);
+}
+
+.main-container.dragging {
+  cursor: col-resize;
 }
 
 .right-panel {
   flex: 1;
+  min-width: 0;
   overflow-y: auto;
   padding: 20px;
   background: var(--gray-100);

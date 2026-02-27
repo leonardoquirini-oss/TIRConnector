@@ -8,6 +8,7 @@ using TIRConnector.API.Configuration;
 using TIRConnector.API.Data;
 using TIRConnector.API.Models.DTOs;
 using TIRConnector.API.Models.Entities;
+using TIRConnector.API.Validation;
 
 namespace TIRConnector.API.Services;
 
@@ -161,6 +162,9 @@ public class QueryTemplateService : IQueryTemplateService
 
         try
         {
+            // Validazione read-only della query del template (defense in depth)
+            SqlQueryValidator.ValidateReadOnlyQuery(template.QuerySql, _querySettings.AllowedCommands);
+
             // Sostituisce i parametri named nella query (:nome_parametro -> @nome_parametro per SQL Server)
             var query = PrepareQuery(template.QuerySql, request.Parameters);
 

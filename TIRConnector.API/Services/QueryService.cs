@@ -7,6 +7,7 @@ using System.Text.RegularExpressions;
 using TIRConnector.API.Configuration;
 using TIRConnector.API.Data;
 using TIRConnector.API.Models.DTOs;
+using TIRConnector.API.Validation;
 
 namespace TIRConnector.API.Services;
 
@@ -166,27 +167,7 @@ public class QueryService : IQueryService
             return;
         }
 
-        var normalizedQuery = query.Trim().ToUpperInvariant();
-
-        // Check if query starts with allowed commands
-        var isAllowed = _querySettings.AllowedCommands
-            .Any(cmd => normalizedQuery.StartsWith(cmd.ToUpperInvariant()));
-
-        if (!isAllowed)
-        {
-            throw new InvalidOperationException(
-                $"Query must start with one of: {string.Join(", ", _querySettings.AllowedCommands)}");
-        }
-
-        // Block dangerous operations
-        var dangerousKeywords = new[] { "DROP", "DELETE", "TRUNCATE", "INSERT", "UPDATE", "ALTER", "CREATE", "EXEC", "EXECUTE" };
-        foreach (var keyword in dangerousKeywords)
-        {
-            if (normalizedQuery.Contains(keyword))
-            {
-                throw new InvalidOperationException($"Query contains forbidden keyword: {keyword}");
-            }
-        }
+        SqlQueryValidator.ValidateReadOnlyQuery(query, _querySettings.AllowedCommands);
     }
 
     private List<ColumnInfo> GetColumnInfo(DbDataReader reader)

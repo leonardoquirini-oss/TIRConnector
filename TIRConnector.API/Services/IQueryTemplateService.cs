@@ -49,6 +49,11 @@ public interface IQueryTemplateService
     Task<QueryResponse> ExecuteTemplateAsync(TemplateExecuteRequest request, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Esegue un template e scrive il risultato in formato CSV nello stream (senza limite MaxRows)
+    /// </summary>
+    Task ExecuteTemplateCsvAsync(TemplateExecuteRequest request, Stream outputStream, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Crea un tag (snapshot) di un template esistente
     /// </summary>
     Task<QueryTag> CreateTagAsync(int templateId, QueryTagCreateDto dto, CancellationToken cancellationToken = default);

@@ -18,7 +18,8 @@
       "Bash(docker-compose build:*)",
       "Bash(grep:*)",
       "Bash(git checkout:*)",
-      "Bash(task tir 2>&1)"
+      "Bash(task tir 2>&1)",
+      "Bash(dotnet build TIRConnector.API/TIRConnector.API.csproj 2>&1 | tail -20)"
     ],
     "deny": [],
     "ask": []

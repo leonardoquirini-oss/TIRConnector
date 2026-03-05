@@ -236,6 +236,103 @@ public class QueryTemplateService : IQueryTemplateService
         }
     }
 
+    public async Task ExecuteTemplateCsvAsync(TemplateExecuteRequest request, Stream outputStream, CancellationToken cancellationToken = default)
+    {
+        var stopwatch = Stopwatch.StartNew();
+
+        var template = await GetTemplateByNameAsync(request.TemplateName, cancellationToken);
+
+        if (template == null)
+        {
+            throw new KeyNotFoundException($"Template '{request.TemplateName}' non trovato o non attivo");
+        }
+
+        _logger.LogInformation("Executing template (CSV): {TemplateName} (ID: {TemplateId})",
+            template.Name, template.IdQueryTemplate);
+
+        try
+        {
+            SqlQueryValidator.ValidateReadOnlyQuery(template.QuerySql, _querySettings.AllowedCommands);
+
+            var query = PrepareQuery(template.QuerySql, request.Parameters);
+
+            var connection = _sqlServerContext.Database.GetDbConnection();
+            await connection.OpenAsync(cancellationToken);
+
+            using var command = connection.CreateCommand();
+            command.CommandText = query;
+            command.CommandTimeout = template.TimeoutSeconds > 0 ? template.TimeoutSeconds : _querySettings.TimeoutSeconds;
+
+            if (request.Parameters != null)
+            {
+                foreach (var param in request.Parameters)
+                {
+                    var parameter = command.CreateParameter();
+                    parameter.ParameterName = $"@{param.Key}";
+                    parameter.Value = ConvertParameterValue(param.Value);
+                    command.Parameters.Add(parameter);
+                }
+            }
+
+            _logger.LogInformation("Executing SQL (CSV): {Query}", query);
+
+            using var reader = await command.ExecuteReaderAsync(cancellationToken);
+            await using var writer = new StreamWriter(outputStream, System.Text.Encoding.UTF8, bufferSize: 8192, leaveOpen: true);
+
+            // Header CSV
+            for (int i = 0; i < reader.FieldCount; i++)
+            {
+                if (i > 0) await writer.WriteAsync(',');
+                await writer.WriteAsync(EscapeCsvField(reader.GetName(i)));
+            }
+            await writer.WriteAsync("\r\n");
+
+            // Righe CSV - nessun limite MaxRows
+            long rowCount = 0;
+            while (await reader.ReadAsync(cancellationToken))
+            {
+                for (int i = 0; i < reader.FieldCount; i++)
+                {
+                    if (i > 0) await writer.WriteAsync(',');
+                    var value = reader.IsDBNull(i) ? "" : reader.GetValue(i)?.ToString() ?? "";
+                    await writer.WriteAsync(EscapeCsvField(value));
+                }
+                await writer.WriteAsync("\r\n");
+                rowCount++;
+
+                // Flush periodico ogni 1000 righe
+                if (rowCount % 1000 == 0)
+                {
+                    await writer.FlushAsync(cancellationToken);
+                }
+            }
+
+            await writer.FlushAsync(cancellationToken);
+
+            stopwatch.Stop();
+            _logger.LogInformation("Template {TemplateName} CSV export completed: {RowCount} rows in {TimeMs}ms",
+                template.Name, rowCount, stopwatch.ElapsedMilliseconds);
+        }
+        catch (Exception ex)
+        {
+            stopwatch.Stop();
+            _logger.LogError(ex, "Error executing template (CSV) {TemplateName}", template.Name);
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// Escaping CSV standard (RFC 4180)
+    /// </summary>
+    private static string EscapeCsvField(string field)
+    {
+        if (field.Contains(',') || field.Contains('"') || field.Contains('\n') || field.Contains('\r'))
+        {
+            return $"\"{field.Replace("\"", "\"\"")}\"";
+        }
+        return field;
+    }
+
     /// <summary>
     /// Converte i parametri nel formato atteso da SQL Server (:param -> @param)
     /// </summary>

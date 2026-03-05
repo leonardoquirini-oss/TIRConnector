@@ -9,7 +9,7 @@ namespace TIRConnector.API.Validation;
 /// Uses a multi-step approach:
 /// 1. Strips string literals, comments, and quoted identifiers to prevent
 ///    false positives (e.g., WHERE col = 'DELETE this') and obfuscation attacks
-/// 2. Verifies the query starts with an allowed command (SELECT)
+/// 2. Verifies the query starts with an allowed command (SELECT) or WITH (for CTEs)
 /// 3. Blocks multiple statements (semicolons)
 /// 4. Checks for dangerous keywords using word-boundary matching,
 ///    which correctly allows keywords as part of identifiers
@@ -87,9 +87,10 @@ public static class SqlQueryValidator
 
         var normalized = cleaned.Trim();
 
-        // Step 2: Verify query starts with an allowed command
+        // Step 2: Verify query starts with an allowed command (or WITH for CTEs)
         var isAllowed = allowedCommands
-            .Any(cmd => Regex.IsMatch(normalized, $@"^\s*{Regex.Escape(cmd)}\b", RegexOptions.IgnoreCase));
+            .Any(cmd => Regex.IsMatch(normalized, $@"^\s*{Regex.Escape(cmd)}\b", RegexOptions.IgnoreCase))
+            || Regex.IsMatch(normalized, @"^\s*WITH\b", RegexOptions.IgnoreCase);
 
         if (!isAllowed)
         {

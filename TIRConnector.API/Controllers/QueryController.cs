@@ -407,6 +407,33 @@ public class QueryController : ControllerBase
                 });
             }
 
+            // Determina il formato effettivo: override dalla request, altrimenti dal template, altrimenti json
+            var effectiveFormat = request.OutputFormat;
+            if (string.IsNullOrEmpty(effectiveFormat))
+            {
+                var template = await _queryTemplateService.GetTemplateByNameAsync(request.TemplateName, cancellationToken);
+                if (template == null)
+                {
+                    return NotFound(new ErrorResponse
+                    {
+                        Error = "TemplateNotFound",
+                        Message = $"Template '{request.TemplateName}' non trovato o non attivo",
+                        Timestamp = DateTime.UtcNow
+                    });
+                }
+                effectiveFormat = template.OutputFormat ?? "json";
+            }
+
+            if (effectiveFormat == "csv")
+            {
+                Response.ContentType = "text/csv; charset=utf-8";
+                var timestamp = DateTime.UtcNow.ToString("yyyyMMdd_HHmmss");
+                Response.Headers.Append("Content-Disposition", $"attachment; filename=\"{request.TemplateName}_{timestamp}.csv\"");
+
+                await _queryTemplateService.ExecuteTemplateCsvAsync(request, Response.Body, cancellationToken);
+                return new EmptyResult();
+            }
+
             var result = await _queryTemplateService.ExecuteTemplateAsync(request, cancellationToken);
             return Ok(result);
         }

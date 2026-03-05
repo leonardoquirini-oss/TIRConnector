@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace TIRConnector.API.Models.DTOs;
 
 /// <summary>
@@ -14,4 +16,11 @@ public class TemplateExecuteRequest
     /// Parametri opzionali per la query (nome parametro -> valore)
     /// </summary>
     public Dictionary<string, object?>? Parameters { get; set; }
+
+    /// <summary>
+    /// Formato di output opzionale (json/csv). Se non specificato, usa il valore del template.
+    /// Con csv: streaming senza limite MaxRows. Con json: comportamento standard con MaxRows.
+    /// </summary>
+    [RegularExpression("^(json|csv)$", ErrorMessage = "OutputFormat deve essere 'json' o 'csv'")]
+    public string? OutputFormat { get; set; }
 }

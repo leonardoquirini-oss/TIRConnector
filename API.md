@@ -354,7 +354,8 @@ Execute a template by name.
   "templateName": "get_articoli_per_codice",
   "parameters": {
     "codice": "ART001"
-  }
+  },
+  "outputFormat": "csv"
 }
 ```
 
@@ -362,8 +363,13 @@ Execute a template by name.
 |-------|------|----------|-------------|
 | `templateName` | string | yes | Template name (must be active and non-deprecated) |
 | `parameters` | object | no | Key-value pairs for template parameters |
+| `outputFormat` | string | no | `json` or `csv`. Overrides the template's default `outputFormat`. If omitted, uses the template's value (default: `json`) |
 
-**200 OK**: Same response format as `POST /api/query/execute`.
+**Output format behavior**:
+- **`json`** (default): Standard JSON response with `MaxRows` limit applied.
+- **`csv`**: Streaming CSV download with **no `MaxRows` limit**. Response has `Content-Type: text/csv; charset=utf-8` and `Content-Disposition: attachment` header. CSV follows RFC 4180 (comma separator, `\r\n` line endings, fields with commas/quotes/newlines are quoted).
+
+**200 OK**: JSON response (same format as `POST /api/query/execute`) or CSV file download.
 **404 Not Found**: Template not found or not active.
 
 ---

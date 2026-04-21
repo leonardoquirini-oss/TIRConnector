@@ -19,7 +19,12 @@
       "Bash(grep:*)",
       "Bash(git checkout:*)",
       "Bash(task tir 2>&1)",
-      "Bash(dotnet build TIRConnector.API/TIRConnector.API.csproj 2>&1 | tail -20)"
+      "Bash(dotnet build TIRConnector.API/TIRConnector.API.csproj 2>&1 | tail -20)",
+      "Bash(dotnet build *)",
+      "Bash(command -v docker)",
+      "Bash(command -v task)",
+      "Bash(docker build *)",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\('totalCount:', d.get\\('totalCount'\\), 'rows:', len\\(d.get\\('data',[]\\)\\)\\); print\\('first:', d['data'][0] if d.get\\('data'\\) else d\\)\")"
     ],
     "deny": [],
     "ask": []

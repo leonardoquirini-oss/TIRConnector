@@ -211,29 +211,45 @@ Execute a SQL query.
 
 #### `POST /api/query/execute/paged`
 
-Execute a SQL query with pagination.
+Execute a SQL query with server-side pagination (SQL Server `OFFSET/FETCH`).
 
 **Request body**: Same as `/execute`.
 
 **Query parameters**:
-- `page` (int, default: 1) - Page number (1-based)
-- `pageSize` (int, default: 20) - Records per page
+- `page` (int, default: 1) - Page number (1-based). Values `< 1` are clamped to 1.
+- `pageSize` (int, default: 20) - Records per page. Values `< 1` fall back to 20; values above `MaxRows` are clamped to `MaxRows`.
+
+**Example**:
+```bash
+curl -X POST "http://localhost:9090/api/query/execute/paged?page=1&pageSize=100" \
+  -H "X-API-Key: <your-key>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "SELECT id, codice, ragione_sociale FROM Clienti WHERE attivo = :stato ORDER BY id",
+    "parameters": { "stato": true }
+  }'
+```
 
 **200 OK**:
 ```json
 {
   "data": [
-    { "Id": 1, "Codice": "ART001" },
-    { "Id": 2, "Codice": "ART002" }
+    { "id": 1, "codice": "ART001", "ragione_sociale": "..." },
+    { "id": 2, "codice": "ART002", "ragione_sociale": "..." }
   ],
   "page": 1,
-  "pageSize": 20,
-  "totalCount": 150,
-  "totalPages": 8
+  "pageSize": 100,
+  "totalCount": 2046,
+  "totalPages": 21
 }
 ```
 
-> The query must contain an `ORDER BY` clause for pagination to work correctly (uses SQL Server `OFFSET/FETCH`).
+**ORDER BY handling**:
+- If the query contains an outer `ORDER BY`, it is detected (parenthesis-aware, ignoring `ORDER BY` inside subqueries, CTEs, and `OVER(...)`) and re-applied on the paged `SELECT`. It is stripped before wrapping in `COUNT(*)`, which SQL Server would otherwise reject.
+- If the query has no outer `ORDER BY`, a neutral `ORDER BY (SELECT NULL)` is injected so `OFFSET/FETCH` remains valid. In that case row order across pages is not guaranteed — add an explicit `ORDER BY` for stable pagination.
+
+**Limitations**:
+- SQL Server does not allow `TOP` and `OFFSET` in the same query, so queries using `TOP N` cannot be paginated through this endpoint.
 
 ---
 

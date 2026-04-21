@@ -108,51 +108,144 @@ public class QueryService : IQueryService
     {
         ValidateQuery(request.Query);
 
-        // Get total count
-        var countQuery = $"SELECT COUNT(*) FROM ({request.Query}) AS CountQuery";
+        if (page < 1) page = 1;
+        if (pageSize < 1) pageSize = 20;
+        if (pageSize > _querySettings.MaxRows) pageSize = _querySettings.MaxRows;
+
+        // SQL Server forbids ORDER BY inside a derived table unless TOP/OFFSET is
+        // also specified, so strip the outer ORDER BY before wrapping in COUNT(*).
+        // The same clause is re-applied on the paged SELECT, which OFFSET/FETCH requires.
+        var (baseQuery, orderByClause) = SplitTrailingOrderBy(request.Query);
+        var effectiveOrderBy = string.IsNullOrWhiteSpace(orderByClause)
+            ? "ORDER BY (SELECT NULL)"
+            : orderByClause!;
+
+        var stopwatch = Stopwatch.StartNew();
         var connection = _context.Database.GetDbConnection();
-        await connection.OpenAsync(cancellationToken);
-
-        using var countCommand = connection.CreateCommand();
-        countCommand.CommandText = countQuery;
-        countCommand.CommandTimeout = _querySettings.TimeoutSeconds;
-
-        if (request.Parameters != null)
+        var ownsConnection = connection.State != ConnectionState.Open;
+        if (ownsConnection)
         {
-            foreach (var param in request.Parameters)
-            {
-                var parameter = countCommand.CreateParameter();
-                parameter.ParameterName = $"@{param.Key}";
-                parameter.Value = ConvertParameterValue(param.Value);
-                countCommand.Parameters.Add(parameter);
-            }
+            await connection.OpenAsync(cancellationToken);
         }
 
-        // Log della count query
-        _logger.LogInformation("Executing count SQL: {Query}", countQuery);
-
-        var totalCount = Convert.ToInt32(await countCommand.ExecuteScalarAsync(cancellationToken));
-
-        // Get paged data
-        var offset = (page - 1) * pageSize;
-        var pagedQuery = $"{request.Query} OFFSET {offset} ROWS FETCH NEXT {pageSize} ROWS ONLY";
-
-        var pagedRequest = new QueryRequest
+        try
         {
-            Query = pagedQuery,
-            Parameters = request.Parameters
-        };
+            int totalCount;
+            var countSql = $"SELECT COUNT(*) FROM ({baseQuery}) AS CountQuery";
+            var countCommandText = Regex.Replace(countSql, @":(\w+)", "@$1");
 
-        var queryResponse = await ExecuteQueryAsync(pagedRequest, cancellationToken);
+            _logger.LogInformation("Executing count SQL: {Query}", countCommandText);
 
-        return new PagedResult<Dictionary<string, object?>>
+            using (var countCommand = connection.CreateCommand())
+            {
+                countCommand.CommandText = countCommandText;
+                countCommand.CommandTimeout = _querySettings.TimeoutSeconds;
+                AddParameters(countCommand, request.Parameters);
+                totalCount = Convert.ToInt32(await countCommand.ExecuteScalarAsync(cancellationToken));
+            }
+
+            var offset = (page - 1) * pageSize;
+            var pagedSql = $"{baseQuery} {effectiveOrderBy} OFFSET {offset} ROWS FETCH NEXT {pageSize} ROWS ONLY";
+            var pagedCommandText = Regex.Replace(pagedSql, @":(\w+)", "@$1");
+
+            _logger.LogInformation("Executing paged SQL: {Query}", pagedCommandText);
+
+            var data = new List<Dictionary<string, object?>>();
+            using (var pagedCommand = connection.CreateCommand())
+            {
+                pagedCommand.CommandText = pagedCommandText;
+                pagedCommand.CommandTimeout = _querySettings.TimeoutSeconds;
+                AddParameters(pagedCommand, request.Parameters);
+
+                using var reader = await pagedCommand.ExecuteReaderAsync(cancellationToken);
+                while (await reader.ReadAsync(cancellationToken))
+                {
+                    var row = new Dictionary<string, object?>();
+                    for (int i = 0; i < reader.FieldCount; i++)
+                    {
+                        row[reader.GetName(i)] = reader.IsDBNull(i) ? null : reader.GetValue(i);
+                    }
+                    data.Add(row);
+                }
+            }
+
+            stopwatch.Stop();
+            _logger.LogInformation("Paged query executed: {RowCount}/{TotalCount} rows in {TimeMs}ms",
+                data.Count, totalCount, stopwatch.ElapsedMilliseconds);
+
+            return new PagedResult<Dictionary<string, object?>>
+            {
+                Data = data,
+                Page = page,
+                PageSize = pageSize,
+                TotalCount = totalCount,
+                TotalPages = pageSize > 0 ? (int)Math.Ceiling(totalCount / (double)pageSize) : 0
+            };
+        }
+        finally
         {
-            Data = queryResponse.Data,
-            Page = page,
-            PageSize = pageSize,
-            TotalCount = totalCount,
-            TotalPages = (int)Math.Ceiling(totalCount / (double)pageSize)
-        };
+            if (ownsConnection && connection.State == ConnectionState.Open)
+            {
+                await connection.CloseAsync();
+            }
+        }
+    }
+
+    private void AddParameters(DbCommand command, Dictionary<string, object>? parameters)
+    {
+        if (parameters == null) return;
+        foreach (var param in parameters)
+        {
+            var p = command.CreateParameter();
+            p.ParameterName = $"@{param.Key}";
+            p.Value = ConvertParameterValue(param.Value);
+            command.Parameters.Add(p);
+        }
+    }
+
+    private static readonly Regex NoiseTokenRegex = new(
+        @"'(?:[^']|'')*'" +
+        @"|""(?:[^""]|"""")*""" +
+        @"|/\*[\s\S]*?\*/" +
+        @"|--[^\r\n]*" +
+        @"|\[(?:[^\]]|\]\])*\]",
+        RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
+    private static readonly Regex OrderByRegex = new(
+        @"\bORDER\s+BY\b",
+        RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
+    private static (string BaseQuery, string? OrderByClause) SplitTrailingOrderBy(string query)
+    {
+        var cleaned = query.ToCharArray();
+        foreach (Match m in NoiseTokenRegex.Matches(query))
+        {
+            for (int i = m.Index; i < m.Index + m.Length; i++)
+            {
+                if (cleaned[i] != '\n' && cleaned[i] != '\r') cleaned[i] = ' ';
+            }
+        }
+        var cleanedStr = new string(cleaned);
+
+        int depth = 0;
+        int cursor = 0;
+        int lastTopLevel = -1;
+        foreach (Match m in OrderByRegex.Matches(cleanedStr))
+        {
+            for (int i = cursor; i < m.Index; i++)
+            {
+                if (cleanedStr[i] == '(') depth++;
+                else if (cleanedStr[i] == ')') depth--;
+            }
+            cursor = m.Index;
+            if (depth == 0) lastTopLevel = m.Index;
+        }
+
+        if (lastTopLevel < 0)
+        {
+            return (query.TrimEnd(), null);
+        }
+        return (query.Substring(0, lastTopLevel).TrimEnd(), query.Substring(lastTopLevel).Trim());
     }
 
     private void ValidateQuery(string query)

@@ -48,8 +48,19 @@ public class QueryController : ControllerBase
     }
 
     /// <summary>
-    /// Execute a paginated SQL query
+    /// Execute a paginated SQL query using SQL Server OFFSET/FETCH.
     /// </summary>
+    /// <remarks>
+    /// The outer ORDER BY of the user query (if any) is detected and re-applied
+    /// on the paged SELECT; it is stripped before wrapping in COUNT(*) so the
+    /// inner derived table is valid for SQL Server. When no ORDER BY is provided,
+    /// a neutral ORDER BY (SELECT NULL) is used. pageSize is clamped to
+    /// QuerySettings.MaxRows. Note: SQL Server does not allow TOP and OFFSET
+    /// in the same query — queries using TOP cannot be paginated.
+    /// </remarks>
+    /// <param name="request">Query and optional parameters (same shape as /execute).</param>
+    /// <param name="page">1-based page number (default 1).</param>
+    /// <param name="pageSize">Rows per page (default 20, clamped to MaxRows).</param>
     [HttpPost("execute/paged")]
     [ProducesResponseType(typeof(PagedResult<Dictionary<string, object?>>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]

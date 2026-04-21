@@ -10,8 +10,8 @@ services:
           - ASPNETCORE_ENVIRONMENT=Production
 
           # DB Locale (SQL Server - TIR)
-          - ConnectionStrings__DefaultConnection=Server=172.28.234.122,1433;Database=TirSQL;User Id=sa;Password=saSA2025@@;TrustServerCertificate=True;Encrypt=False;MultipleActiveResultSets=true
-          - ConnectionStrings__PostgresConnection=Host=172.28.234.122;Port=5432;Database=tirconnectordb;Username=tirconnector;Password=tirconnector
+          #- ConnectionStrings__DefaultConnection=Server=172.28.234.122,1433;Database=TirSQL;User #Id=sa;Password=saSA2025@@;TrustServerCertificate=True;Encrypt=False;MultipleActiveResultSets=true
+          # - ConnectionStrings__PostgresConnection=Host=172.28.234.122;Port=5432;Database=tirconnectordb;Username=tirconnector;Password=tirconnector
 
           # Adhoc Connector su 192.168.0.10
           #- ConnectionStrings__PostgresConnection=Host=192.168.0.12;Port=5432;Database=adhocconnectordb;Username=adhocconnector;Password=adhocconnector
@@ -20,9 +20,12 @@ services:
           # TIR Connector su 192.168.0.10
           #- ConnectionStrings__PostgresConnection=Host=192.168.0.12;Port=5432;Database=tirconnectordb;Username=tirconnector;Password=@@TirConn2025
           #- ConnectionStrings__DefaultConnection=Data Source=192.168.0.10\TIR;Initial Catalog=TirSQL;Persist Security Info=True;User ID=UtenteSolaLettura;Password=test;Pooling=False;MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=True;Command Timeout=0
-
-          - ApiKeySettings__Keys=default-key-change-me,another-key
-
+          
+          # TIR Connector su 192.168.0.12
+          - ConnectionStrings__PostgresConnection=Host=postgres-service;Port=5432;Database=tirconnectordb;Username=tirconnector;Password=@@TirConn2025      
+          - ConnectionStrings__DefaultConnection=Data Source=192.168.0.10\TIR;Initial Catalog=TirSQL;Persist Security Info=True;User ID=UtenteSolaLettura;Password=test;Pooling=False;MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=True;Command Timeout=0      
+          - ApiKeySettings__Keys=afd633be-262b-4d62-9089-bfe300a58ffa   
+          
           - AdminUI__AppName=DEVEL
 
           - Valkey__ConnectionString=172.28.234.122:6379

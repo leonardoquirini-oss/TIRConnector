@@ -22,8 +22,10 @@ public class ApiKeyAuthenticationMiddleware
 
     public async Task InvokeAsync(HttpContext context)
     {
-        // Skip authentication for health check, Swagger, and admin static files
-        if (context.Request.Path.StartsWithSegments("/api/health") ||
+        // Skip authentication for liveness probe (public per HEALTH_CONTRACT),
+        // built-in /health, Swagger, and admin static files.
+        // /api/health/ready and /api/health (deprecated alias) still require X-API-Key.
+        if (context.Request.Path.StartsWithSegments("/api/health/live") ||
             context.Request.Path.StartsWithSegments("/swagger") ||
             context.Request.Path.StartsWithSegments("/health") ||
             context.Request.Path.StartsWithSegments("/admin"))

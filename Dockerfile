@@ -59,8 +59,8 @@ ENV ASPNETCORE_ENVIRONMENT=Production
 # Expose port
 EXPOSE 8080
 
-# Health check
+# Health check (liveness probe per HEALTH_CONTRACT - public, no API key needed)
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD curl -f http://localhost:8080/api/health || exit 1
+  CMD curl -fsS http://localhost:8080/api/health/live || exit 1
 
 ENTRYPOINT ["/app/entrypoint.sh"]

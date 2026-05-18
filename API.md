@@ -11,9 +11,12 @@ ASP.NET Core 8.0 REST API connector for TIR SQL Server database.
 ## Authentication
 
 All API endpoints require an `X-API-Key` header, except:
-- `GET /api/health` and `GET /health`
+- `GET /api/health/live` (public liveness probe)
+- `GET /health` (built-in ASP.NET health checks)
 - `/swagger/*`
 - `/admin/*` (static files)
+
+`GET /api/health/ready` and `GET /api/health` (deprecated alias) require the API key.
 
 ```
 X-API-Key: your-api-key
@@ -56,27 +59,65 @@ All errors follow this structure:
 
 ### Health
 
-#### `GET /api/health`
+The service implements the BERLink platform [HEALTH_CONTRACT](../../BERLink/prompt/HEALTH_CONTRACT.md): two endpoints under `/api/health/`.
 
-Health check. No authentication required.
+| URL | Auth | Purpose |
+|---|---|---|
+| `GET /api/health/live` | Public | Liveness probe. No dependency checks. Always returns 200 if process is alive. |
+| `GET /api/health/ready` | `X-API-Key` | Readiness probe. Verifies SQL Server and PostgreSQL. Returns 503 if any dependency is DOWN. |
+| `GET /api/health` | `X-API-Key` | **Deprecated** alias of `/api/health/ready`. Kept for backward compatibility. |
 
-**200 OK**:
+Use `/live` for Docker `HEALTHCHECK` and K8s `livenessProbe`; use `/ready` for fleet monitors and K8s `readinessProbe`.
+
+#### `GET /api/health/live`
+
+**200 OK** (always):
 ```json
 {
-  "status": "Healthy",
-  "timestamp": "2026-01-15T10:30:00Z",
-  "database": "Connected"
+  "status": "UP",
+  "service": "tir-connector",
+  "version": "1.0.0",
+  "timestamp": "2026-05-15T10:30:00Z"
 }
 ```
 
-**503 Service Unavailable**:
+#### `GET /api/health/ready`
+
+Headers: `X-API-Key: <key>`
+
+**200 OK** — all dependencies UP:
 ```json
 {
-  "status": "Unhealthy",
-  "timestamp": "2026-01-15T10:30:00Z",
-  "database": "Disconnected"
+  "status": "UP",
+  "service": "tir-connector",
+  "version": "1.0.0",
+  "timestamp": "2026-05-15T10:30:00Z",
+  "checks": {
+    "database": "UP",
+    "postgres": "UP"
+  }
 }
 ```
+
+**503 Service Unavailable** — at least one dependency DOWN:
+```json
+{
+  "status": "DOWN",
+  "service": "tir-connector",
+  "version": "1.0.0",
+  "timestamp": "2026-05-15T10:30:00Z",
+  "checks": {
+    "database": "UP",
+    "postgres": "DOWN"
+  }
+}
+```
+
+Rules:
+- `status` is `UP` only if all `checks` are `UP`; otherwise `DOWN`.
+- `service` is the stable kebab-case service identifier (`tir-connector`).
+- `version` is the application version (from assembly metadata).
+- `checks` keys: `database` (SQL Server / TIR), `postgres` (template store).
 
 ---
 

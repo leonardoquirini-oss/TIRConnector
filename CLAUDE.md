@@ -69,7 +69,25 @@ Container runs on port **8080** internally, mapped to **9090** externally.
 
 ## Authentication
 
-All API endpoints (except `/api/health`, `/health`, `/swagger`, `/admin`) require an `X-API-Key` header. API keys are configured via `ApiKeySettings.Keys` (comma-separated).
+All API endpoints require an `X-API-Key` header, except:
+- `/api/health/live` (public liveness probe per platform [HEALTH_CONTRACT](../../BERLink/prompt/HEALTH_CONTRACT.md))
+- `/health` (built-in ASP.NET health checks)
+- `/swagger/*`
+- `/admin/*` (static admin UI files)
+
+`/api/health/ready` and the deprecated `/api/health` alias require the API key. API keys are configured via `ApiKeySettings.Keys` (comma-separated).
+
+## Health Checks
+
+`HealthController` implements the BERLink platform health contract:
+
+| Endpoint | Auth | Behaviour |
+|---|---|---|
+| `GET /api/health/live` | Public | Always 200. Body `{status, service, version, timestamp}`. Used by Docker `HEALTHCHECK`. |
+| `GET /api/health/ready` | API Key | Pings SQL Server and PostgreSQL. 200 if all UP, 503 otherwise. Body includes `checks` map. |
+| `GET /api/health` | API Key | Deprecated alias of `/ready`. |
+
+Service identifier is `tir-connector`; version is read from the assembly (`<Version>` in `TIRConnector.API.csproj`). To add a new dependency check, ping it inside `HealthController.Ready` and add the result to the `checks` dictionary.
 
 ## SQL Query Validation
 

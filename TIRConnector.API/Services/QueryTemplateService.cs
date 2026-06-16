@@ -176,20 +176,11 @@ public class QueryTemplateService : IQueryTemplateService
             command.CommandText = query;
             command.CommandTimeout = template.TimeoutSeconds > 0 ? template.TimeoutSeconds : _querySettings.TimeoutSeconds;
 
-            // Aggiunge i parametri
-            if (request.Parameters != null)
-            {
-                foreach (var param in request.Parameters)
-                {
-                    var parameter = command.CreateParameter();
-                    parameter.ParameterName = $"@{param.Key}";
-                    parameter.Value = ConvertParameterValue(param.Value);
-                    command.Parameters.Add(parameter);
-                }
-            }
+            // Aggiunge i parametri (le liste vengono espanse per supportare IN (:lista))
+            AddParameters(command, request.Parameters);
 
-            // Log della query finale
-            _logger.LogInformation("Executing SQL: {Query}", query);
+            // Log della query finale (CommandText riflette eventuali liste espanse)
+            _logger.LogInformation("Executing SQL: {Query}", command.CommandText);
             _logger.LogInformation("Parameters: {Parameters}",
                 request.Parameters != null
                     ? string.Join(", ", request.Parameters.Select(p => $"{p.Key}={p.Value}"))
@@ -263,18 +254,9 @@ public class QueryTemplateService : IQueryTemplateService
             command.CommandText = query;
             command.CommandTimeout = template.TimeoutSeconds > 0 ? template.TimeoutSeconds : _querySettings.TimeoutSeconds;
 
-            if (request.Parameters != null)
-            {
-                foreach (var param in request.Parameters)
-                {
-                    var parameter = command.CreateParameter();
-                    parameter.ParameterName = $"@{param.Key}";
-                    parameter.Value = ConvertParameterValue(param.Value);
-                    command.Parameters.Add(parameter);
-                }
-            }
+            AddParameters(command, request.Parameters);
 
-            _logger.LogInformation("Executing SQL (CSV): {Query}", query);
+            _logger.LogInformation("Executing SQL (CSV): {Query}", command.CommandText);
 
             using var reader = await command.ExecuteReaderAsync(cancellationToken);
             await using var writer = new StreamWriter(outputStream, System.Text.Encoding.UTF8, bufferSize: 8192, leaveOpen: true);
@@ -361,6 +343,62 @@ public class QueryTemplateService : IQueryTemplateService
             });
         }
         return columns;
+    }
+
+    /// <summary>
+    /// Aggiunge i parametri al comando. I parametri di tipo array (es. List&lt;string&gt;)
+    /// vengono espansi in più parametri scalari per supportare clausole IN (:lista).
+    /// </summary>
+    private void AddParameters(DbCommand command, Dictionary<string, object?>? parameters)
+    {
+        if (parameters == null) return;
+        foreach (var param in parameters)
+        {
+            if (param.Value is System.Text.Json.JsonElement je
+                && je.ValueKind == System.Text.Json.JsonValueKind.Array)
+            {
+                BindListParameter(command, param.Key, je);
+            }
+            else
+            {
+                var p = command.CreateParameter();
+                p.ParameterName = $"@{param.Key}";
+                p.Value = ConvertParameterValue(param.Value);
+                command.Parameters.Add(p);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Espande un parametro lista (es. IN (:itemList)) in più parametri scalari
+    /// (@itemList_0, @itemList_1, ...) e sostituisce il placeholder nella query.
+    /// Le liste vuote sono rifiutate (ArgumentException -> HTTP 400).
+    /// </summary>
+    private void BindListParameter(DbCommand command, string key, System.Text.Json.JsonElement array)
+    {
+        var names = new List<string>();
+        var index = 0;
+        foreach (var element in array.EnumerateArray())
+        {
+            var name = $"@{key}_{index}";
+            names.Add(name);
+            var p = command.CreateParameter();
+            p.ParameterName = name;
+            p.Value = ConvertParameterValue(element);
+            command.Parameters.Add(p);
+            index++;
+        }
+
+        if (names.Count == 0)
+        {
+            throw new ArgumentException($"Il parametro lista '{key}' non può essere vuoto.");
+        }
+
+        // Sostituisce @key (parola intera) con @key_0,@key_1,...
+        command.CommandText = Regex.Replace(
+            command.CommandText,
+            $@"@{Regex.Escape(key)}\b",
+            string.Join(",", names));
     }
 
     /// <summary>

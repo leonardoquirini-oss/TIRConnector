@@ -224,6 +224,20 @@ Execute a SQL query.
 | `query` | string | yes | SQL SELECT query. Parameters use `:name` format |
 | `parameters` | object | no | Key-value pairs for parameterized queries |
 
+**List parameters (`IN` clause)**: a parameter value can be a JSON array. The placeholder is expanded into multiple SQL parameters (`@name_0, @name_1, ...`), so `IN ( :itemList )` is safe against injection. Use a JSON array for lists and a scalar for single values; the two can be mixed in the same request.
+
+```json
+{
+  "query": "SELECT * FROM Clienti WHERE codice IN ( :itemList ) AND stato = :stato",
+  "parameters": {
+    "itemList": ["aa", "bb", "cc"],
+    "stato": "ATTIVO"
+  }
+}
+```
+
+Numbers are passed unquoted (`"ids": [1, 2, 3]`). An **empty array** is rejected with `400 Bad Request` (`Il parametro lista 'name' non può essere vuoto`). List parameters work identically in `/execute`, `/execute/paged`, and template execution.
+
 **200 OK**:
 ```json
 {
@@ -419,7 +433,7 @@ Execute a template by name.
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `templateName` | string | yes | Template name (must be active and non-deprecated) |
-| `parameters` | object | no | Key-value pairs for template parameters |
+| `parameters` | object | no | Key-value pairs for template parameters. A value can be a JSON array for `IN ( :list )` clauses — see [List parameters](#post-apiqueryexecute) |
 | `outputFormat` | string | no | `json` or `csv`. Overrides the template's default `outputFormat`. If omitted, uses the template's value (default: `json`) |
 
 **Output format behavior**:

@@ -120,7 +120,7 @@ Settings are in `appsettings.json` (dev) and overridden via environment variable
 - **Language**: C# code and comments in English, user-facing messages and descriptions in Italian
 - **Naming**: PascalCase for C# classes/methods, snake_case for PostgreSQL table/column names
 - **EF Core**: PostgreSQL sequences for ID generation (`s_query_templates`, `s_query_tags`)
-- **Parameters**: Query parameters use `:param` format (PostgreSQL-style), converted to `@param` (SQL Server) at runtime
+- **Parameters**: Query parameters use `:param` format (PostgreSQL-style), converted to `@param` (SQL Server) at runtime. `#param` marks an optional parameter: bound to `NULL` when the caller omits it (missing `:param` still errors)
 - **Error handling**: `GlobalExceptionFilter` maps exceptions to HTTP status codes (ArgumentException/InvalidOperationException -> 400, KeyNotFoundException -> 404, UnauthorizedAccessException -> 401)
 - **Logging**: Serilog with console + daily rolling file (`logs/tirconnector-{date}.txt`)
 

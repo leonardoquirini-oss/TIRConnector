@@ -12,7 +12,7 @@ services:
 
           # DB Locale (SQL Server - TIR)
           #- ConnectionStrings__DefaultConnection=Server=172.28.234.122,1433;Database=TirSQL;User #Id=sa;Password=saSA2025@@;TrustServerCertificate=True;Encrypt=False;MultipleActiveResultSets=true
-          # - ConnectionStrings__PostgresConnection=Host=172.28.234.122;Port=5432;Database=tirconnectordb;Username=tirconnector;Password=tirconnector
+          #- ConnectionStrings__PostgresConnection=Host=172.28.234.122;Port=5432;Database=tirconnectordb;Username=tirconnector;Password=tirconnector
 
           # Adhoc Connector su 192.168.0.10
           #- ConnectionStrings__PostgresConnection=Host=192.168.0.12;Port=5432;Database=adhocconnectordb;Username=adhocconnector;Password=adhocconnector
@@ -23,20 +23,17 @@ services:
           #- ConnectionStrings__DefaultConnection=Data Source=192.168.0.10\TIR;Initial Catalog=TirSQL;Persist Security Info=True;User ID=UtenteSolaLettura;Password=test;Pooling=False;MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=True;Command Timeout=0
           
           # TIR Connector su 192.168.0.12
-          - ConnectionStrings__PostgresConnection=Host=postgres-service;Port=5432;Database=tirconnectordb;Username=tirconnector;Password=@@TirConn2025      
+          - ConnectionStrings__PostgresConnection=Host=192.168.0.12;Port=5432;Database=tirconnectordb;Username=tirconnector;Password=@@TirConn2025      
           - ConnectionStrings__DefaultConnection=Data Source=192.168.0.10\TIR;Initial Catalog=TirSQL;Persist Security Info=True;User ID=UtenteSolaLettura;Password=test;Pooling=False;MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=True;Command Timeout=0      
-          - ApiKeySettings__Keys=afd633be-262b-4d62-9089-bfe300a58ffa   
+          - ApiKeySettings__Keys=afd633be-262b-4d62-9089-bfe300a58ffa
           
           - AdminUI__AppName=DEVEL
 
-          - Valkey__ConnectionString=172.28.234.122:6379
+          - Valkey__ConnectionString=valkey-service:6379
           - Valkey__Password=
           - Valkey__Database=0
-
-          - ContainerCache__EnableScheduler=True
-          
-          # A mezzanotte
-          - ContainerCache__CronExpression=0 1 * * * *
+          - ContainerCache__EnableScheduler=False
+          - ContainerCache__CronExpression=0 0 * * * *
 
           - Cors__AllowedOrigins__0=*          
         volumes:

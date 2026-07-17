@@ -221,8 +221,18 @@ Execute a SQL query.
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `query` | string | yes | SQL SELECT query. Parameters use `:name` format |
+| `query` | string | yes | SQL SELECT query. Parameters use `:name` (required) or `#name` (optional) format |
 | `parameters` | object | no | Key-value pairs for parameterized queries |
+
+**Optional parameters (`#name`)**: a placeholder written as `#name` is optional — if the caller does not supply a value, it is bound to `NULL` instead of causing an error. A `:name` placeholder remains required: if missing, execution fails with `400 Bad Request` ("Must declare the scalar variable"). Optional parameters enable conditional filters, e.g.:
+
+```sql
+SELECT * FROM Ordini
+WHERE data_carico = CONVERT(date, :date, 103)
+  AND ( #ignoraFiltro IS NOT NULL OR stato = 'DA_PROCESSARE' )
+```
+
+Callers that omit `ignoraFiltro` get the filter applied (`NULL IS NOT NULL` is false); callers that pass any non-null value skip it. Passing an explicit `null` behaves like omitting the parameter. Note: `#name` is reserved for optional parameters — temp-table syntax is not available anyway in read-only SELECT queries. An optional **list** parameter that is omitted becomes `IN (NULL)`, which matches no rows. Optional parameters work identically in `/execute`, `/execute/paged`, and template execution.
 
 **List parameters (`IN` clause)**: a parameter value can be a JSON array. The placeholder is expanded into multiple SQL parameters (`@name_0, @name_1, ...`), so `IN ( :itemList )` is safe against injection. Use a JSON array for lists and a scalar for single values; the two can be mixed in the same request.
 

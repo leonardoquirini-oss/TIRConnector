@@ -39,11 +39,12 @@ public class QueryService : IQueryService
             await connection.OpenAsync(cancellationToken);
 
             using var command = connection.CreateCommand();
-            // Converti parametri da formato :param (PostgreSQL) a @param (SQL Server)
-            command.CommandText = Regex.Replace(request.Query, @":(\w+)", "@$1");
+            // Converti parametri da formato :param / #param a @param (SQL Server)
+            command.CommandText = PrepareCommandText(request.Query, out var optionalParams);
             command.CommandTimeout = _querySettings.TimeoutSeconds;
 
             AddParameters(command, request.Parameters);
+            BindOptionalParameters(command, optionalParams);
 
             // Log della query finale (CommandText riflette eventuali liste espanse)
             _logger.LogInformation("Executing SQL: {Query}", command.CommandText);
@@ -123,7 +124,7 @@ public class QueryService : IQueryService
         {
             int totalCount;
             var countSql = $"SELECT COUNT(*) FROM ({baseQuery}) AS CountQuery";
-            var countCommandText = Regex.Replace(countSql, @":(\w+)", "@$1");
+            var countCommandText = PrepareCommandText(countSql, out var countOptionalParams);
 
             _logger.LogInformation("Executing count SQL: {Query}", countCommandText);
 
@@ -132,12 +133,13 @@ public class QueryService : IQueryService
                 countCommand.CommandText = countCommandText;
                 countCommand.CommandTimeout = _querySettings.TimeoutSeconds;
                 AddParameters(countCommand, request.Parameters);
+                BindOptionalParameters(countCommand, countOptionalParams);
                 totalCount = Convert.ToInt32(await countCommand.ExecuteScalarAsync(cancellationToken));
             }
 
             var offset = (page - 1) * pageSize;
             var pagedSql = $"{baseQuery} {effectiveOrderBy} OFFSET {offset} ROWS FETCH NEXT {pageSize} ROWS ONLY";
-            var pagedCommandText = Regex.Replace(pagedSql, @":(\w+)", "@$1");
+            var pagedCommandText = PrepareCommandText(pagedSql, out var pagedOptionalParams);
 
             _logger.LogInformation("Executing paged SQL: {Query}", pagedCommandText);
 
@@ -147,6 +149,7 @@ public class QueryService : IQueryService
                 pagedCommand.CommandText = pagedCommandText;
                 pagedCommand.CommandTimeout = _querySettings.TimeoutSeconds;
                 AddParameters(pagedCommand, request.Parameters);
+                BindOptionalParameters(pagedCommand, pagedOptionalParams);
 
                 using var reader = await pagedCommand.ExecuteReaderAsync(cancellationToken);
                 while (await reader.ReadAsync(cancellationToken))
@@ -178,6 +181,40 @@ public class QueryService : IQueryService
             if (ownsConnection && connection.State == ConnectionState.Open)
             {
                 await connection.CloseAsync();
+            }
+        }
+    }
+
+    /// <summary>
+    /// Converte i parametri nel formato atteso da SQL Server (:param / #param -> @param).
+    /// I parametri dichiarati con # sono opzionali: se il chiamante non li fornisce
+    /// vengono bindati a NULL (vedi BindOptionalParameters). I parametri :param restano
+    /// obbligatori: se mancanti SQL Server solleva errore (-> HTTP 400) come sempre.
+    /// </summary>
+    private static string PrepareCommandText(string querySql, out HashSet<string> optionalParams)
+    {
+        optionalParams = Regex.Matches(querySql, @"#(\w+)")
+            .Select(m => m.Groups[1].Value)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        return Regex.Replace(querySql, @"[:#](\w+)", "@$1");
+    }
+
+    /// <summary>
+    /// Binda a NULL i parametri opzionali (#param) non forniti dal chiamante.
+    /// Da chiamare dopo AddParameters, così i valori forniti (incluse le liste
+    /// espanse) hanno la precedenza.
+    /// </summary>
+    private void BindOptionalParameters(DbCommand command, HashSet<string> optionalParams)
+    {
+        foreach (var name in optionalParams)
+        {
+            if (!command.Parameters.Contains($"@{name}"))
+            {
+                var p = command.CreateParameter();
+                p.ParameterName = $"@{name}";
+                p.Value = DBNull.Value;
+                command.Parameters.Add(p);
             }
         }
     }

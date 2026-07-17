@@ -14,7 +14,8 @@
 
   // Extract parameters from query on mount/change
   $: {
-    const matches = query.match(/:(\w+)/g) || [];
+    // :param = obbligatorio, #param = opzionale (bindato a NULL se non fornito)
+    const matches = query.match(/[:#](\w+)/g) || [];
     parameters = [...new Set(matches.map(m => m.substring(1)))];
     // Initialize param values
     parameters.forEach(p => {

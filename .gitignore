@@ -1,0 +1,10 @@
+# .NET build artifacts
+[Bb]in/
+[Oo]bj/
+
+# Runtime logs
+logs/
+
+# IDE
+.vs/
+*.user

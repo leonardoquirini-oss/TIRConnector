@@ -172,8 +172,8 @@ public class QueryTemplateService : IQueryTemplateService
             // Validazione read-only della query del template (defense in depth)
             SqlQueryValidator.ValidateReadOnlyQuery(template.QuerySql, _querySettings.AllowedCommands);
 
-            // Sostituisce i parametri named nella query (:nome_parametro -> @nome_parametro per SQL Server)
-            var query = PrepareQuery(template.QuerySql, request.Parameters);
+            // Sostituisce i parametri named nella query (:param obbligatorio, #param opzionale -> @param)
+            var query = PrepareQuery(template.QuerySql, out var optionalParams);
 
             // Esegue la query su SQL Server
             var connection = _sqlServerContext.Database.GetDbConnection();
@@ -185,6 +185,7 @@ public class QueryTemplateService : IQueryTemplateService
 
             // Aggiunge i parametri (le liste vengono espanse per supportare IN (:lista))
             AddParameters(command, request.Parameters);
+            BindOptionalParameters(command, optionalParams);
 
             // Log della query finale (CommandText riflette eventuali liste espanse)
             _logger.LogInformation("Executing SQL: {Query}", command.CommandText);
@@ -252,7 +253,7 @@ public class QueryTemplateService : IQueryTemplateService
         {
             SqlQueryValidator.ValidateReadOnlyQuery(template.QuerySql, _querySettings.AllowedCommands);
 
-            var query = PrepareQuery(template.QuerySql, request.Parameters);
+            var query = PrepareQuery(template.QuerySql, out var optionalParams);
 
             var connection = _sqlServerContext.Database.GetDbConnection();
             await connection.OpenAsync(cancellationToken);
@@ -262,6 +263,7 @@ public class QueryTemplateService : IQueryTemplateService
             command.CommandTimeout = template.TimeoutSeconds > 0 ? template.TimeoutSeconds : _querySettings.TimeoutSeconds;
 
             AddParameters(command, request.Parameters);
+            BindOptionalParameters(command, optionalParams);
 
             _logger.LogInformation("Executing SQL (CSV): {Query}", command.CommandText);
 
@@ -323,19 +325,43 @@ public class QueryTemplateService : IQueryTemplateService
     }
 
     /// <summary>
-    /// Converte i parametri nel formato atteso da SQL Server (:param -> @param)
+    /// Converte i parametri nel formato atteso da SQL Server (:param / #param -> @param).
+    /// I parametri dichiarati con # sono opzionali: se il chiamante non li fornisce
+    /// vengono bindati a NULL (vedi BindOptionalParameters). I parametri :param restano
+    /// obbligatori: se mancanti SQL Server solleva errore (-> HTTP 400) come sempre.
     /// </summary>
-    private string PrepareQuery(string querySql, Dictionary<string, object?>? parameters)
+    private string PrepareQuery(string querySql, out HashSet<string> optionalParams)
     {
         if (string.IsNullOrWhiteSpace(querySql))
         {
             throw new ArgumentException("La query SQL del template non può essere vuota");
         }
 
-        // Converte i parametri PostgreSQL-style (:param) in SQL Server-style (@param)
-        var query = Regex.Replace(querySql, @":(\w+)", "@$1");
+        optionalParams = Regex.Matches(querySql, @"#(\w+)")
+            .Select(m => m.Groups[1].Value)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-        return query;
+        // Converte :param (obbligatorio) e #param (opzionale) in SQL Server-style (@param)
+        return Regex.Replace(querySql, @"[:#](\w+)", "@$1");
+    }
+
+    /// <summary>
+    /// Binda a NULL i parametri opzionali (#param) non forniti dal chiamante.
+    /// Da chiamare dopo AddParameters, così i valori forniti (incluse le liste
+    /// espanse) hanno la precedenza.
+    /// </summary>
+    private void BindOptionalParameters(DbCommand command, HashSet<string> optionalParams)
+    {
+        foreach (var name in optionalParams)
+        {
+            if (!command.Parameters.Contains($"@{name}"))
+            {
+                var p = command.CreateParameter();
+                p.ParameterName = $"@{name}";
+                p.Value = DBNull.Value;
+                command.Parameters.Add(p);
+            }
+        }
     }
 
     private List<ColumnInfo> GetColumnInfo(DbDataReader reader)

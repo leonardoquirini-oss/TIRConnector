@@ -55,8 +55,20 @@ public static class SqlQueryValidator
         "DBCC", "BACKUP", "RESTORE",
         "SHUTDOWN", "KILL", "RECONFIGURE",
         "WAITFOR", "BULK",
-        "XP_CMDSHELL", "SP_EXECUTESQL",
-        "WRITETEXT", "UPDATETEXT"
+        "WRITETEXT", "UPDATETEXT",
+        // Extended stored procedures: shell / file system / registry / OLE
+        // (exact names, word-boundary matched: won't hit legit columns unless
+        //  a column were named exactly like one of these — practically impossible)
+        "XP_CMDSHELL", "XP_DIRTREE", "XP_FILEEXIST", "XP_FILESTATUS",
+        "XP_SUBDIRS", "XP_GETFILEDETAILS", "XP_AVAILABLEMEDIA", "XP_ENUMDSN",
+        "XP_REGREAD", "XP_REGWRITE", "XP_REGDELETEKEY", "XP_REGDELETEVALUE",
+        "XP_REGENUMVALUES", "XP_REGADDMULTISTRING", "XP_INSTANCE_REGREAD",
+        "XP_SERVICECONTROL", "XP_MSVER", "XP_LOGINCONFIG", "XP_ENUMGROUPS",
+        // OLE Automation procedures (arbitrary code / file / shell via COM)
+        "SP_OACREATE", "SP_OAMETHOD", "SP_OAGETPROPERTY", "SP_OASETPROPERTY",
+        "SP_OADESTROY", "SP_OAGETERRORINFO",
+        // Dynamic SQL / server configuration / extensibility
+        "SP_EXECUTESQL", "SP_CONFIGURE", "SP_ADDEXTENDEDPROC", "SP_MAKEWEBTASK"
     ];
 
     /// <summary>

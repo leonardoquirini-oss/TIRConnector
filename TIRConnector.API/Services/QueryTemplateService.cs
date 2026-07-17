@@ -65,6 +65,10 @@ public class QueryTemplateService : IQueryTemplateService
 
     public async Task<QueryTemplate> CreateTemplateAsync(QueryTemplateDto dto, CancellationToken cancellationToken = default)
     {
+        // Valida la query read-only GIA' AL SALVATAGGIO (non solo in esecuzione):
+        // un template pericoloso non entra nemmeno nel database.
+        SqlQueryValidator.ValidateReadOnlyQuery(dto.QuerySql, _querySettings.AllowedCommands);
+
         // Genera nuovo ID dalla sequenza (EF Core richiede alias "Value" per tipi primitivi)
         var nextId = await _postgresContext.Database
             .SqlQuery<int>($"SELECT nextval('s_query_templates')::int AS \"Value\"")
@@ -102,6 +106,9 @@ public class QueryTemplateService : IQueryTemplateService
         {
             throw new KeyNotFoundException($"Template con ID {id} non trovato");
         }
+
+        // Valida la query read-only al salvataggio (allineato a CreateTemplateAsync)
+        SqlQueryValidator.ValidateReadOnlyQuery(dto.QuerySql, _querySettings.AllowedCommands);
 
         // Incrementa la versione solo se il testo della query SQL è cambiato
         var querySqlChanged = template.QuerySql != dto.QuerySql;

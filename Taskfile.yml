@@ -4,7 +4,13 @@ vars:
   
 
 tasks:
-  
+
+  test:
+    desc: Esegue gli unit test (validatore SQL read-only). Nessun DB/app richiesto.
+    cmds:
+      - dotnet test TIRConnector.Tests/TIRConnector.Tests.csproj
+    silent: true
+
   stop-tir:
     cmds:
       - docker-compose stop tirconnector
